@@ -1,0 +1,71 @@
+<?php
+
+namespace App\Filament\Resources\SchoolClasses\Tables;
+
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\ColorColumn;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Table;
+
+class SchoolClassesTable
+{
+    public static function configure(Table $table): Table
+    {
+        return $table
+            ->columns([
+                ColorColumn::make('color')
+                    ->label(''),
+                TextColumn::make('name')
+                    ->label('Classe')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('level')
+                    ->label('Niveau')
+                    ->sortable(),
+                TextColumn::make('school_year')
+                    ->label('Année scolaire')
+                    ->sortable(),
+                TextColumn::make('subject.name')
+                    ->label('Matière')
+                    ->badge()
+                    ->color(fn ($record) => $record->subject?->color ?? 'gray')
+                    ->placeholder('—'),
+                IconColumn::make('is_archived')
+                    ->label('Archivée')
+                    ->boolean(),
+            ])
+            ->defaultSort('name')
+            ->filters([
+                TernaryFilter::make('is_archived')
+                    ->label('Archivée')
+                    ->default(false),
+            ])
+            ->recordActions([
+                Action::make('archive')
+                    ->label('Archiver')
+                    ->icon(Heroicon::OutlinedArchiveBox)
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->visible(fn ($record) => ! $record->is_archived)
+                    ->action(fn ($record) => $record->update(['is_archived' => true, 'archived_at' => now()])),
+                Action::make('unarchive')
+                    ->label('Désarchiver')
+                    ->icon(Heroicon::OutlinedArrowUturnLeft)
+                    ->color('gray')
+                    ->visible(fn ($record) => $record->is_archived)
+                    ->action(fn ($record) => $record->update(['is_archived' => false, 'archived_at' => null])),
+                EditAction::make(),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+}
