@@ -3,6 +3,7 @@
 use App\Filament\Resources\SchoolClasses\Pages\CreateSchoolClass;
 use App\Filament\Resources\SchoolClasses\Pages\ListSchoolClasses;
 use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -48,6 +49,55 @@ it('archives and unarchives a class from the table', function () {
         ->filterTable('is_archived', null)
         ->callTableAction('unarchive', $class);
     expect($class->refresh()->is_archived)->toBeFalse();
+});
+
+it('archiving a class also archives its active students, but not the reverse', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $activeStudent = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $alreadyArchivedStudent = Student::factory()->for($teacher)->for($class, 'schoolClass')->archived()->create();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(ListSchoolClasses::class)->callTableAction('archive', $class);
+
+    expect($activeStudent->refresh()->is_archived)->toBeTrue()
+        ->and($alreadyArchivedStudent->refresh()->is_archived)->toBeTrue();
+
+    Livewire::test(ListSchoolClasses::class)
+        ->filterTable('is_archived', null)
+        ->callTableAction('unarchive', $class);
+
+    expect($class->refresh()->is_archived)->toBeFalse()
+        ->and($activeStudent->refresh()->is_archived)->toBeTrue();
+});
+
+it('soft-deletes, restores and force-deletes a class', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+
+    $class->delete();
+    expect(SchoolClass::query()->find($class->id))->toBeNull()
+        ->and(SchoolClass::withTrashed()->find($class->id))->not->toBeNull();
+
+    $class->restore();
+    expect(SchoolClass::query()->find($class->id))->not->toBeNull();
+
+    $class->delete();
+    $class->forceDelete();
+    expect(SchoolClass::withTrashed()->find($class->id))->toBeNull();
+});
+
+it('exposes trash actions on the classes table for a soft-deleted class', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $class->delete();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(ListSchoolClasses::class)
+        ->filterTable('trashed', false)
+        ->assertCanSeeTableRecords([$class]);
 });
 
 it('hides archived classes from the default table view', function () {

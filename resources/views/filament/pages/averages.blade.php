@@ -28,6 +28,16 @@
                 <input type="checkbox" wire:model.live="showRanking" class="fi-checkbox-input rounded border-gray-300 dark:border-gray-600" />
                 Afficher le classement
             </label>
+
+            <x-filament::button color="gray" wire:click="exportCsv">
+                Exporter CSV
+            </x-filament::button>
+
+            @if ($termId)
+                <x-filament::button color="gray" wire:click="downloadClassBulletins">
+                    Bulletins de la classe (PDF)
+                </x-filament::button>
+            @endif
         </div>
     </x-filament::section>
 
@@ -48,6 +58,9 @@
                             @endif
                             <th class="p-2">Élève</th>
                             <th class="p-2">Moyenne</th>
+                            @if ($termId)
+                                <th class="p-2"></th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -60,6 +73,13 @@
                                 <td class="p-2">
                                     {{ $row['average'] !== null ? number_format($row['average'], 2).'/20' : 'Aucune note' }}
                                 </td>
+                                @if ($termId)
+                                    <td class="p-2">
+                                        <x-filament::button size="xs" color="gray" wire:click="downloadBulletin({{ $row['student']->id }})">
+                                            Bulletin (PDF)
+                                        </x-filament::button>
+                                    </td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>

@@ -4,6 +4,8 @@ namespace App\Filament\Resources\SchoolClasses\Pages;
 
 use App\Filament\Resources\SchoolClasses\SchoolClassResource;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditSchoolClass extends EditRecord
@@ -14,6 +16,8 @@ class EditSchoolClass extends EditRecord
     {
         return [
             DeleteAction::make(),
+            ForceDeleteAction::make(),
+            RestoreAction::make(),
         ];
     }
 }

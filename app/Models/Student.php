@@ -54,6 +54,16 @@ class Student extends Model
         return $this->hasMany(Grade::class);
     }
 
+    public function appreciations(): HasMany
+    {
+        return $this->hasMany(Appreciation::class);
+    }
+
+    public function randomPicks(): HasMany
+    {
+        return $this->hasMany(RandomPick::class);
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");

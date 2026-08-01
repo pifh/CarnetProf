@@ -1,0 +1,212 @@
+<?php
+
+namespace App\Filament\Pages;
+
+use App\Models\Appreciation;
+use App\Models\AppreciationTemplate;
+use App\Models\SchoolClass;
+use App\Models\Student;
+use App\Models\Term;
+use App\Services\AppreciationSuggester;
+use BackedEnum;
+use Filament\Pages\Page;
+use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+
+class Appreciations extends Page
+{
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftRight;
+
+    protected static ?string $navigationLabel = 'Appréciations';
+
+    protected static ?string $title = 'Appréciations';
+
+    protected static ?int $navigationSort = 30;
+
+    protected string $view = 'filament.pages.appreciations';
+
+    public ?int $schoolClassId = null;
+
+    public ?int $termId = null;
+
+    public string $type = 'general';
+
+    public function mount(): void
+    {
+        $this->schoolClassId = SchoolClass::query()
+            ->where('user_id', Auth::id())
+            ->where('is_archived', false)
+            ->orderBy('name')
+            ->value('id');
+
+        $this->termId = Term::query()
+            ->where('user_id', Auth::id())
+            ->orderBy('position')
+            ->value('id');
+    }
+
+    /**
+     * @return Collection<int, SchoolClass>
+     */
+    public function getSchoolClassesProperty(): Collection
+    {
+        return SchoolClass::query()
+            ->where('user_id', Auth::id())
+            ->where('is_archived', false)
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, Term>
+     */
+    public function getTermsProperty(): Collection
+    {
+        return Term::query()
+            ->where('user_id', Auth::id())
+            ->orderBy('position')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, AppreciationTemplate>
+     */
+    public function getTemplatesProperty(): Collection
+    {
+        return AppreciationTemplate::query()
+            ->where('user_id', Auth::id())
+            ->orderBy('label')
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, Student>
+     */
+    public function getStudentsProperty(): Collection
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+
+        if (! $schoolClass || ! $term) {
+            return collect();
+        }
+
+        $appreciations = Appreciation::query()
+            ->where('school_class_id', $schoolClass->id)
+            ->where('term_id', $term->id)
+            ->where('type', $this->type)
+            ->get()
+            ->keyBy('student_id');
+
+        return $schoolClass->students()
+            ->where('is_archived', false)
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(function (Student $student) use ($appreciations) {
+                $student->appreciation = $appreciations->get($student->id);
+
+                return $student;
+            });
+    }
+
+    public function updateContent(int $studentId, ?string $value): void
+    {
+        $appreciation = $this->findOrNewAppreciation($studentId);
+
+        if (! $appreciation) {
+            return;
+        }
+
+        $appreciation->content = trim((string) $value) ?: null;
+        $appreciation->save();
+    }
+
+    public function toggleDraft(int $studentId): void
+    {
+        $appreciation = $this->findAppreciation($studentId);
+
+        if (! $appreciation) {
+            return;
+        }
+
+        $appreciation->is_draft = ! $appreciation->is_draft;
+        $appreciation->save();
+    }
+
+    public function suggest(int $studentId): void
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+        $student = $this->getStudentsProperty()->firstWhere('id', $studentId);
+
+        if (! $schoolClass || ! $term || ! $student) {
+            return;
+        }
+
+        $suggestion = app(AppreciationSuggester::class)->suggest($student, $schoolClass, $term);
+
+        if ($suggestion === null) {
+            return;
+        }
+
+        $appreciation = $this->findOrNewAppreciation($studentId);
+        $appreciation?->fill(['content' => $suggestion]);
+        $appreciation?->save();
+    }
+
+    public function applyTemplate(int $studentId, string $templateId): void
+    {
+        if ($templateId === '') {
+            return;
+        }
+
+        $template = $this->getTemplatesProperty()->firstWhere('id', (int) $templateId);
+
+        if (! $template) {
+            return;
+        }
+
+        $appreciation = $this->findOrNewAppreciation($studentId);
+        $appreciation?->fill(['content' => $template->content]);
+        $appreciation?->save();
+    }
+
+    private function findAppreciation(int $studentId): ?Appreciation
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+
+        if (! $schoolClass || ! $term) {
+            return null;
+        }
+
+        return Appreciation::query()
+            ->where('student_id', $studentId)
+            ->where('school_class_id', $schoolClass->id)
+            ->where('term_id', $term->id)
+            ->where('type', $this->type)
+            ->first();
+    }
+
+    private function findOrNewAppreciation(int $studentId): ?Appreciation
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+
+        if (! $schoolClass || ! $term) {
+            return null;
+        }
+
+        $appreciation = Appreciation::query()->firstOrNew([
+            'student_id' => $studentId,
+            'school_class_id' => $schoolClass->id,
+            'term_id' => $term->id,
+            'type' => $this->type,
+        ]);
+        $appreciation->user_id = Auth::id();
+
+        return $appreciation;
+    }
+}

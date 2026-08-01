@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Students\Schemas;
 
 use App\Models\SchoolClass;
+use App\Models\StudentSubgroup;
+use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
@@ -105,6 +107,21 @@ class StudentForm
                                             ->find($schoolClassId)
                                             ?->subgroups()
                                             ->pluck('name', 'id') ?? [];
+                                    })
+                                    ->createOptionForm([
+                                        TextInput::make('name')
+                                            ->label('Nom du groupe')
+                                            ->required()
+                                            ->maxLength(255),
+                                        ColorPicker::make('color')
+                                            ->label('Couleur')
+                                            ->default('#6b7280'),
+                                    ])
+                                    ->createOptionAction(fn ($action) => $action->modalHeading('Nouveau groupe'))
+                                    ->createOptionUsing(function (array $data, callable $get) {
+                                        $data['school_class_id'] = $get('school_class_id');
+
+                                        return StudentSubgroup::create($data)->getKey();
                                     }),
                             ]),
 

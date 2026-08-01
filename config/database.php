@@ -62,6 +62,13 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            // Some process managers (e.g. a dev server, or a web server pool)
+            // run with a trimmed-down PATH that doesn't include mysqldump.
+            // Set DB_DUMP_BINARY_PATH to its containing directory if backups
+            // fail with "dump process failed with a non-successful exit code".
+            'dump' => array_filter([
+                'dumpBinaryPath' => env('DB_DUMP_BINARY_PATH'),
+            ]),
         ],
 
         'mariadb' => [
