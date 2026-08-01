@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['school_class_id', 'term_id', 'title', 'exam_date', 'coefficient', 'max_score'])]
+#[Fillable(['school_class_id', 'subject_id', 'term_id', 'title', 'exam_date', 'coefficient', 'max_score'])]
 class Evaluation extends Model
 {
     use BelongsToTeacher, HasFactory;
@@ -26,6 +26,11 @@ class Evaluation extends Model
     public function schoolClass(): BelongsTo
     {
         return $this->belongsTo(SchoolClass::class);
+    }
+
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class);
     }
 
     public function term(): BelongsTo

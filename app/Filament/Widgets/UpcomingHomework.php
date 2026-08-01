@@ -33,6 +33,9 @@ class UpcomingHomework extends TableWidget
                     ->label('Classe')
                     ->badge()
                     ->color(fn (LogbookEntry $record) => $record->schoolClass?->color ?? 'gray'),
+                TextColumn::make('subject.name')
+                    ->label('Matière')
+                    ->placeholder('—'),
                 TextColumn::make('homework')
                     ->label('Travail à faire')
                     ->limit(60)

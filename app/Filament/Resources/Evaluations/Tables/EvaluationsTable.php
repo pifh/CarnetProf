@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Evaluations\Tables;
 
 use App\Filament\Pages\EvaluationGrades;
 use App\Models\SchoolClass;
+use App\Models\Subject;
 use App\Models\Term;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -28,7 +29,7 @@ class EvaluationsTable
                     ->label('Classe')
                     ->badge()
                     ->color(fn ($record) => $record->schoolClass?->color ?? 'gray'),
-                TextColumn::make('schoolClass.subject.name')
+                TextColumn::make('subject.name')
                     ->label('Matière')
                     ->placeholder('—'),
                 TextColumn::make('term.label')
@@ -60,6 +61,9 @@ class EvaluationsTable
                 SelectFilter::make('school_class_id')
                     ->label('Classe')
                     ->options(fn () => SchoolClass::query()->where('user_id', Auth::id())->pluck('name', 'id')),
+                SelectFilter::make('subject_id')
+                    ->label('Matière')
+                    ->options(fn () => Subject::query()->where('user_id', Auth::id())->pluck('name', 'id')),
                 SelectFilter::make('term_id')
                     ->label('Trimestre')
                     ->options(fn () => Term::query()->where('user_id', Auth::id())->orderBy('position')->pluck('label', 'id')),

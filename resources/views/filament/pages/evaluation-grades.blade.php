@@ -5,7 +5,7 @@
                 <x-filament::badge :color="$evaluation->schoolClass?->color ?? 'gray'">
                     {{ $evaluation->schoolClass?->name }}
                 </x-filament::badge>
-                <span>{{ $evaluation->schoolClass?->subject?->name ?? 'Matière non définie' }}</span>
+                <span>{{ $evaluation->subject?->name ?? 'Matière non définie' }}</span>
                 <span>{{ $evaluation->term?->label }}</span>
                 <span>Barème /{{ rtrim(rtrim(number_format($evaluation->max_score, 2), '0'), '.') }}</span>
                 <span>Coefficient {{ rtrim(rtrim(number_format($evaluation->coefficient, 2), '0'), '.') }}</span>

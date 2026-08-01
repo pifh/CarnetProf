@@ -34,15 +34,17 @@ class SchoolClassForm
                     ->default(fn () => SchoolClass::currentSchoolYear())
                     ->placeholder('2026-2027'),
 
-                Select::make('subject_id')
-                    ->label('Matière')
+                Select::make('subjects')
+                    ->label('Matières')
                     ->relationship(
-                        name: 'subject',
+                        name: 'subjects',
                         titleAttribute: 'name',
                         modifyQueryUsing: fn ($query) => $query->where('user_id', Auth::id()),
                     )
+                    ->multiple()
                     ->searchable()
                     ->preload()
+                    ->helperText('Une classe partagée entre plusieurs matières (ex. Maths et Informatique) garde le même groupe d\'élèves, mais des notes, appréciations, progressions et cahiers de texte séparés par matière.')
                     ->createOptionForm([
                         TextInput::make('name')
                             ->label('Nom de la matière')

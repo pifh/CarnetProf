@@ -12,6 +12,19 @@
                 </x-filament::input.wrapper>
             </div>
 
+            @if ($this->subjects->isNotEmpty())
+                <div>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Matière</label>
+                    <x-filament::input.wrapper class="max-w-sm">
+                        <x-filament::input.select wire:model.live="subjectId">
+                            @foreach ($this->subjects as $subject)
+                                <option value="{{ $subject->id }}">{{ $subject->name }}</option>
+                            @endforeach
+                        </x-filament::input.select>
+                    </x-filament::input.wrapper>
+                </div>
+            @endif
+
             <x-filament::button tag="a" href="{{ \App\Filament\Resources\ProgressionSequences\ProgressionSequenceResource::getUrl('index') }}" color="gray">
                 Gérer les séquences
             </x-filament::button>

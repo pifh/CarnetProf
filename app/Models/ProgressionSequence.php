@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['school_class_id', 'term_id', 'title', 'description', 'position', 'status', 'completed_at'])]
+#[Fillable(['school_class_id', 'subject_id', 'term_id', 'title', 'description', 'position', 'status', 'completed_at'])]
 class ProgressionSequence extends Model
 {
     use BelongsToTeacher, HasFactory;
@@ -23,6 +23,11 @@ class ProgressionSequence extends Model
     public function schoolClass(): BelongsTo
     {
         return $this->belongsTo(SchoolClass::class);
+    }
+
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class);
     }
 
     public function term(): BelongsTo

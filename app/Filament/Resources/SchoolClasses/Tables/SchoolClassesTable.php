@@ -34,10 +34,10 @@ class SchoolClassesTable
                 TextColumn::make('school_year')
                     ->label('Année scolaire')
                     ->sortable(),
-                TextColumn::make('subject.name')
-                    ->label('Matière')
+                TextColumn::make('subjects.name')
+                    ->label('Matières')
                     ->badge()
-                    ->color(fn ($record) => $record->subject?->color ?? 'gray')
+                    ->color('gray')
                     ->placeholder('—'),
                 IconColumn::make('is_archived')
                     ->label('Archivée')

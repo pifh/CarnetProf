@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\AvatarProviders\InitialsAvatarProvider;
+use App\Filament\Pages\Auth\EditProfile;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Auth\MultiFactor\Email\EmailAuthentication;
 use Filament\Http\Middleware\Authenticate;
@@ -34,7 +36,7 @@ class AppPanelProvider extends PanelProvider
             ->passwordReset()
             ->emailVerification()
             ->emailChangeVerification()
-            ->profile(isSimple: false)
+            ->profile(EditProfile::class, isSimple: false)
             ->multiFactorAuthentication([
                 AppAuthentication::make(),
                 EmailAuthentication::make(),
@@ -42,6 +44,7 @@ class AppPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Emerald,
             ])
+            ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([

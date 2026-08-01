@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Term;
 
 class AppreciationSuggester
@@ -15,16 +16,16 @@ class AppreciationSuggester
      * the given term, adjusted for the trend versus the previous term.
      * Returns null when there is no grade to base a suggestion on.
      */
-    public function suggest(Student $student, SchoolClass $schoolClass, Term $term): ?string
+    public function suggest(Student $student, SchoolClass $schoolClass, Term $term, ?Subject $subject = null): ?string
     {
-        $average = $this->gradeCalculator->studentAverage($student, $schoolClass, $term);
+        $average = $this->gradeCalculator->studentAverage($student, $schoolClass, $term, $subject);
 
         if ($average === null) {
             return null;
         }
 
         $sentence = $this->sentenceForAverage($average);
-        $trend = $this->trendSentence($student, $schoolClass, $term, $average);
+        $trend = $this->trendSentence($student, $schoolClass, $term, $average, $subject);
 
         return trim("{$sentence} {$trend}");
     }
@@ -41,7 +42,7 @@ class AppreciationSuggester
         };
     }
 
-    private function trendSentence(Student $student, SchoolClass $schoolClass, Term $term, float $average): string
+    private function trendSentence(Student $student, SchoolClass $schoolClass, Term $term, float $average, ?Subject $subject = null): string
     {
         $previousTerm = Term::query()
             ->where('user_id', $term->user_id)
@@ -54,7 +55,7 @@ class AppreciationSuggester
             return '';
         }
 
-        $previousAverage = $this->gradeCalculator->studentAverage($student, $schoolClass, $previousTerm);
+        $previousAverage = $this->gradeCalculator->studentAverage($student, $schoolClass, $previousTerm, $subject);
 
         if ($previousAverage === null) {
             return '';

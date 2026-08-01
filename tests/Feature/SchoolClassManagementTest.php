@@ -1,9 +1,11 @@
 <?php
 
 use App\Filament\Resources\SchoolClasses\Pages\CreateSchoolClass;
+use App\Filament\Resources\SchoolClasses\Pages\EditSchoolClass;
 use App\Filament\Resources\SchoolClasses\Pages\ListSchoolClasses;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -110,6 +112,25 @@ it('hides archived classes from the default table view', function () {
     Livewire::test(ListSchoolClasses::class)
         ->assertCanSeeTableRecords([$active])
         ->assertCanNotSeeTableRecords([$archived]);
+});
+
+it('lets a class be linked to several subjects while keeping a single shared roster', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $maths = Subject::factory()->for($teacher)->create(['name' => 'Mathématiques']);
+    $informatique = Subject::factory()->for($teacher)->create(['name' => 'Informatique']);
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(EditSchoolClass::class, ['record' => $class->getRouteKey()])
+        ->fillForm(['subjects' => [$maths->id, $informatique->id]])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($class->refresh()->subjects->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$maths->id, $informatique->id])->sort()->values()->all())
+        ->and($class->students()->pluck('id')->all())->toBe([$student->id]);
 });
 
 it("prevents a teacher from updating or deleting another teacher's class", function () {

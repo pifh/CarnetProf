@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Term;
 use App\Services\BulletinGenerator;
 use App\Services\GradeCalculator;
@@ -29,6 +30,8 @@ class Averages extends Page
 
     public ?int $schoolClassId = null;
 
+    public ?int $subjectId = null;
+
     public ?int $termId = null;
 
     public bool $showRanking = false;
@@ -40,6 +43,32 @@ class Averages extends Page
             ->where('is_archived', false)
             ->orderBy('name')
             ->value('id');
+
+        $this->syncSubjectId();
+    }
+
+    public function updatedSchoolClassId(): void
+    {
+        $this->syncSubjectId();
+    }
+
+    private function syncSubjectId(): void
+    {
+        $subjectIds = $this->getSubjectsProperty()->pluck('id');
+
+        if (! $subjectIds->contains($this->subjectId)) {
+            $this->subjectId = $subjectIds->first();
+        }
+    }
+
+    /**
+     * @return Collection<int, Subject>
+     */
+    public function getSubjectsProperty(): Collection
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+
+        return $schoolClass?->subjects()->orderBy('name')->get() ?? collect();
     }
 
     /**
@@ -77,6 +106,7 @@ class Averages extends Page
         }
 
         $term = $this->termId ? $this->getTermsProperty()->firstWhere('id', $this->termId) : null;
+        $subject = $this->subjectId ? $this->getSubjectsProperty()->firstWhere('id', $this->subjectId) : null;
         $calculator = app(GradeCalculator::class);
 
         $rows = $schoolClass->students()
@@ -86,7 +116,7 @@ class Averages extends Page
             ->get()
             ->map(fn ($student) => [
                 'student' => $student,
-                'average' => $calculator->studentAverage($student, $schoolClass, $term),
+                'average' => $calculator->studentAverage($student, $schoolClass, $term, $subject),
             ]);
 
         if ($this->showRanking) {
@@ -105,7 +135,8 @@ class Averages extends Page
         }
 
         $term = $this->termId ? $this->getTermsProperty()->firstWhere('id', $this->termId) : null;
-        $average = app(GradeCalculator::class)->classAverage($schoolClass, $term);
+        $subject = $this->subjectId ? $this->getSubjectsProperty()->firstWhere('id', $this->subjectId) : null;
+        $average = app(GradeCalculator::class)->classAverage($schoolClass, $term, $subject);
 
         return $average !== null ? number_format($average, 2) : null;
     }
@@ -114,13 +145,14 @@ class Averages extends Page
     {
         $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
         $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+        $subject = $this->subjectId ? $this->getSubjectsProperty()->firstWhere('id', $this->subjectId) : null;
         $student = $schoolClass?->students()->find($studentId);
 
         if (! $schoolClass || ! $term || ! $student) {
             return null;
         }
 
-        $bulletin = app(BulletinGenerator::class)->build($student, $schoolClass, $term);
+        $bulletin = app(BulletinGenerator::class)->build($student, $schoolClass, $term, $subject);
 
         $filename = 'bulletin-'.str($student->last_name.'-'.$student->first_name)->slug().'.pdf';
         $pdf = Pdf::loadView('pdf.bulletin', ['bulletins' => [$bulletin]]);
@@ -132,6 +164,7 @@ class Averages extends Page
     {
         $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
         $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+        $subject = $this->subjectId ? $this->getSubjectsProperty()->firstWhere('id', $this->subjectId) : null;
 
         if (! $schoolClass || ! $term) {
             return null;
@@ -144,7 +177,7 @@ class Averages extends Page
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get()
-            ->map(fn (Student $student) => $generator->build($student, $schoolClass, $term));
+            ->map(fn (Student $student) => $generator->build($student, $schoolClass, $term, $subject));
 
         $filename = 'bulletins-'.str($schoolClass->name.'-'.$term->label)->slug().'.pdf';
         $pdf = Pdf::loadView('pdf.bulletin', ['bulletins' => $bulletins]);

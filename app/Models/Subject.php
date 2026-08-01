@@ -6,15 +6,15 @@ use App\Models\Concerns\BelongsToTeacher;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable(['name', 'color'])]
 class Subject extends Model
 {
     use BelongsToTeacher, HasFactory;
 
-    public function schoolClasses(): HasMany
+    public function schoolClasses(): BelongsToMany
     {
-        return $this->hasMany(SchoolClass::class);
+        return $this->belongsToMany(SchoolClass::class);
     }
 }

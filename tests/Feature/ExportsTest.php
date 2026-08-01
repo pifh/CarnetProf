@@ -7,6 +7,7 @@ use App\Models\Evaluation;
 use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use App\Services\BulletinGenerator;
@@ -38,6 +39,33 @@ it('builds bulletin data with only published appreciations', function () {
         ->and($bulletin['evaluations']->first()['title'])->toBe('Contrôle 1')
         ->and($bulletin['generalAppreciation'])->toBe('Bon trimestre.')
         ->and($bulletin['disciplinaryAppreciation'])->toBeNull();
+});
+
+it('builds bulletin data scoped to a single subject when the class has several', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $maths = Subject::factory()->for($teacher)->create(['name' => 'Mathématiques']);
+    $informatique = Subject::factory()->for($teacher)->create(['name' => 'Informatique']);
+    $class->subjects()->attach([$maths->id, $informatique->id]);
+    $term = Term::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $mathsEval = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($maths)->create(['title' => 'Contrôle maths', 'max_score' => 20]);
+    Grade::factory()->for($teacher)->for($mathsEval)->for($student)->create(['score' => 15, 'status' => 'graded']);
+
+    $infoEval = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($informatique)->create(['title' => 'Contrôle info', 'max_score' => 20]);
+    Grade::factory()->for($teacher)->for($infoEval)->for($student)->create(['score' => 5, 'status' => 'graded']);
+
+    Appreciation::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->for($term)->for($maths)->create([
+        'type' => 'general', 'content' => 'Excellent en maths.', 'is_draft' => false,
+    ]);
+
+    $bulletin = app(BulletinGenerator::class)->build($student, $class, $term, $maths);
+
+    expect($bulletin['average'])->toBe(15.0)
+        ->and($bulletin['evaluations'])->toHaveCount(1)
+        ->and($bulletin['evaluations']->first()['title'])->toBe('Contrôle maths')
+        ->and($bulletin['generalAppreciation'])->toBe('Excellent en maths.');
 });
 
 it('downloads a single student bulletin as a PDF', function () {

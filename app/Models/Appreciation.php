@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['student_id', 'school_class_id', 'term_id', 'type', 'content', 'is_draft'])]
+#[Fillable(['student_id', 'school_class_id', 'subject_id', 'term_id', 'type', 'content', 'is_draft'])]
 class Appreciation extends Model
 {
     use BelongsToTeacher, HasFactory;
@@ -28,6 +28,11 @@ class Appreciation extends Model
     public function schoolClass(): BelongsTo
     {
         return $this->belongsTo(SchoolClass::class);
+    }
+
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class);
     }
 
     public function term(): BelongsTo

@@ -7,6 +7,7 @@ use App\Models\Evaluation;
 use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use Livewire\Livewire;
@@ -101,6 +102,35 @@ it('computes per-student and class averages on the Averages page', function () {
     expect($rows->firstWhere('student.id', $studentA->id)['average'])->toBe(10.0)
         ->and($rows->firstWhere('student.id', $studentB->id)['average'])->toBe(20.0)
         ->and($component->instance()->getClassAverage())->toBe('15.00');
+});
+
+it('scopes the Averages page to the selected subject when a class has several', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $maths = Subject::factory()->for($teacher)->create(['name' => 'Mathématiques']);
+    $informatique = Subject::factory()->for($teacher)->create(['name' => 'Informatique']);
+    $class->subjects()->attach([$maths->id, $informatique->id]);
+    $term = Term::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $mathsEval = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($maths)->create(['max_score' => 20]);
+    Grade::factory()->for($teacher)->for($mathsEval)->for($student, 'student')->create(['score' => 8, 'status' => 'graded']);
+
+    $infoEval = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($informatique)->create(['max_score' => 20]);
+    Grade::factory()->for($teacher)->for($infoEval)->for($student, 'student')->create(['score' => 16, 'status' => 'graded']);
+
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(Averages::class)
+        ->set('schoolClassId', $class->id)
+        ->set('termId', $term->id)
+        ->set('subjectId', $maths->id);
+
+    expect($component->get('rows')->firstWhere('student.id', $student->id)['average'])->toBe(8.0);
+
+    $component->set('subjectId', $informatique->id);
+
+    expect($component->get('rows')->firstWhere('student.id', $student->id)['average'])->toBe(16.0);
 });
 
 it('only lists a teacher\'s own evaluations', function () {

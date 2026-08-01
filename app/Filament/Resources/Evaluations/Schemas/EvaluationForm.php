@@ -25,7 +25,15 @@ class EvaluationForm
                     )
                     ->searchable()
                     ->preload()
+                    ->live()
                     ->required(),
+
+                Select::make('subject_id')
+                    ->label('Matière')
+                    ->options(fn (callable $get) => SchoolClass::query()->find($get('school_class_id'))?->subjects()->pluck('name', 'subjects.id') ?? [])
+                    ->visible(fn (callable $get) => SchoolClass::query()->find($get('school_class_id'))?->subjects()->exists() ?? false)
+                    ->required(fn (callable $get) => SchoolClass::query()->find($get('school_class_id'))?->subjects()->exists() ?? false)
+                    ->searchable(),
 
                 Select::make('term_id')
                     ->label('Trimestre')

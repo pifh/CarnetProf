@@ -87,8 +87,8 @@
                 <div class="meta">
                     {{ $bulletin['student']->first_name }} {{ $bulletin['student']->last_name }}
                     — {{ $bulletin['schoolClass']->name }}
-                    @if ($bulletin['schoolClass']->subject)
-                        — {{ $bulletin['schoolClass']->subject->name }}
+                    @if ($bulletin['subject'])
+                        — {{ $bulletin['subject']->name }}
                     @endif
                 </div>
             </div>

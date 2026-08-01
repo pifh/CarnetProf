@@ -12,6 +12,19 @@
                 </x-filament::input.wrapper>
             </div>
 
+            @if ($this->subjects->isNotEmpty())
+                <div>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Matière</label>
+                    <x-filament::input.wrapper>
+                        <x-filament::input.select wire:model.live="subjectId">
+                            @foreach ($this->subjects as $subject)
+                                <option value="{{ $subject->id }}">{{ $subject->name }}</option>
+                            @endforeach
+                        </x-filament::input.select>
+                    </x-filament::input.wrapper>
+                </div>
+            @endif
+
             <div>
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Période</label>
                 <x-filament::input.wrapper>

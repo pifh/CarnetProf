@@ -4,6 +4,7 @@ use App\Models\Evaluation;
 use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use App\Services\GradeCalculator;
@@ -112,4 +113,26 @@ it('averages every active student to compute the class average, ignoring student
     makeGrade($studentB, $eval, 20);
 
     expect(app(GradeCalculator::class)->classAverage($class, $term))->toBe(15.0);
+});
+
+it('scopes averages per subject when a class is shared between several subjects', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $maths = Subject::factory()->for($teacher)->create(['name' => 'Mathématiques']);
+    $informatique = Subject::factory()->for($teacher)->create(['name' => 'Informatique']);
+    $class->subjects()->attach([$maths->id, $informatique->id]);
+    $term = Term::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $mathsEval = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($maths)->create(['max_score' => 20]);
+    makeGrade($student, $mathsEval, 8);
+
+    $infoEval = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($informatique)->create(['max_score' => 20]);
+    makeGrade($student, $infoEval, 16);
+
+    $calculator = app(GradeCalculator::class);
+
+    expect($calculator->studentAverage($student, $class, $term, $maths))->toBe(8.0)
+        ->and($calculator->studentAverage($student, $class, $term, $informatique))->toBe(16.0)
+        ->and($calculator->studentAverage($student, $class, $term))->toBe(12.0);
 });

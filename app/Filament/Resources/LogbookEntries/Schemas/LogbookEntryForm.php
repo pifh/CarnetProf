@@ -27,6 +27,14 @@ class LogbookEntryForm
                     ->live()
                     ->required(),
 
+                Select::make('subject_id')
+                    ->label('Matière')
+                    ->options(fn (callable $get) => SchoolClass::query()->find($get('school_class_id'))?->subjects()->pluck('name', 'subjects.id') ?? [])
+                    ->visible(fn (callable $get) => SchoolClass::query()->find($get('school_class_id'))?->subjects()->exists() ?? false)
+                    ->required(fn (callable $get) => SchoolClass::query()->find($get('school_class_id'))?->subjects()->exists() ?? false)
+                    ->live()
+                    ->searchable(),
+
                 DatePicker::make('date')
                     ->label('Date de la séance')
                     ->native(false)
@@ -47,6 +55,7 @@ class LogbookEntryForm
                         return SchoolClass::query()
                             ->find($schoolClassId)
                             ?->progressionSequences()
+                            ->where('subject_id', $get('subject_id'))
                             ->pluck('title', 'id') ?? [];
                     })
                     ->searchable()

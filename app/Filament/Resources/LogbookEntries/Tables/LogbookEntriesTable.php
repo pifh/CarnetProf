@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\LogbookEntries\Tables;
 
+use App\Models\Subject;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -10,6 +11,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class LogbookEntriesTable
 {
@@ -26,6 +28,9 @@ class LogbookEntriesTable
                     ->badge()
                     ->color(fn ($record) => $record->schoolClass?->color ?? 'gray')
                     ->sortable(),
+                TextColumn::make('subject.name')
+                    ->label('Matière')
+                    ->placeholder('—'),
                 TextColumn::make('content')
                     ->label('Contenu')
                     ->limit(60)
@@ -44,6 +49,9 @@ class LogbookEntriesTable
                 SelectFilter::make('school_class_id')
                     ->label('Classe')
                     ->relationship('schoolClass', 'name'),
+                SelectFilter::make('subject_id')
+                    ->label('Matière')
+                    ->options(fn () => Subject::query()->where('user_id', Auth::id())->pluck('name', 'id')),
             ])
             ->recordActions([
                 EditAction::make(),

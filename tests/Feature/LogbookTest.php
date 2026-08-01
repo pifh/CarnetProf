@@ -5,6 +5,7 @@ use App\Filament\Widgets\UpcomingHomework;
 use App\Models\LogbookEntry;
 use App\Models\ProgressionSequence;
 use App\Models\SchoolClass;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -68,4 +69,23 @@ it('links a logbook entry to a progression sequence of the same class', function
     $entry = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create(['progression_sequence_id' => $sequence->id]);
 
     expect($entry->progressionSequence->id)->toBe($sequence->id);
+});
+
+it('keeps logbook entries and their linked sequences separate per subject', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $maths = Subject::factory()->for($teacher)->create(['name' => 'Mathématiques']);
+    $informatique = Subject::factory()->for($teacher)->create(['name' => 'Informatique']);
+    $class->subjects()->attach([$maths->id, $informatique->id]);
+
+    $mathsSequence = ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->for($maths)->create();
+    $infoSequence = ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->for($informatique)->create();
+
+    $mathsEntry = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->for($maths)->create(['progression_sequence_id' => $mathsSequence->id]);
+    $infoEntry = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->for($informatique)->create(['progression_sequence_id' => $infoSequence->id]);
+
+    expect($mathsEntry->subject->id)->toBe($maths->id)
+        ->and($mathsEntry->progressionSequence->id)->toBe($mathsSequence->id)
+        ->and($infoEntry->subject->id)->toBe($informatique->id)
+        ->and($infoEntry->progressionSequence->id)->toBe($infoSequence->id);
 });

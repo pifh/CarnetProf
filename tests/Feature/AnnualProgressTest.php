@@ -5,6 +5,7 @@ use App\Filament\Resources\ProgressionSequences\Pages\CreateProgressionSequence;
 use App\Filament\Resources\ProgressionSequences\Pages\ListProgressionSequences;
 use App\Models\ProgressionSequence;
 use App\Models\SchoolClass;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -128,6 +129,32 @@ it('reports being behind pace when nothing is done late in the school year', fun
     expect($pacing['label'])->toBe('En retard');
 
     Carbon::setTestNow();
+});
+
+it('scopes sequences and progress to the selected subject when a class has several', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $maths = Subject::factory()->for($teacher)->create(['name' => 'Mathématiques']);
+    $informatique = Subject::factory()->for($teacher)->create(['name' => 'Informatique']);
+    $class->subjects()->attach([$maths->id, $informatique->id]);
+
+    ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->for($maths)->done()->create(['title' => 'Maths A']);
+    ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->for($maths)->create(['title' => 'Maths B']);
+    ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->for($informatique)->done()->create(['title' => 'Info A']);
+
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(AnnualProgress::class)
+        ->set('schoolClassId', $class->id)
+        ->set('subjectId', $maths->id);
+
+    expect($component->get('sequences')->pluck('title')->all())->toBe(['Maths A', 'Maths B'])
+        ->and($component->get('progressPercent'))->toBe(50);
+
+    $component->set('subjectId', $informatique->id);
+
+    expect($component->get('sequences')->pluck('title')->all())->toBe(['Info A'])
+        ->and($component->get('progressPercent'))->toBe(100);
 });
 
 it("keeps the annual progress page's sequences isolated from another teacher's class", function () {

@@ -8,6 +8,7 @@ use App\Models\Evaluation;
 use App\Models\Grade;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
 use Livewire\Livewire;
@@ -89,6 +90,36 @@ it('applies a template to an appreciation', function () {
     $appreciation = Appreciation::query()->where('student_id', $student->id)->first();
 
     expect($appreciation->content)->toBe('Élève sérieux et impliqué.');
+});
+
+it('keeps appreciations separate per subject for a class shared between subjects', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $maths = Subject::factory()->for($teacher)->create(['name' => 'Mathématiques']);
+    $informatique = Subject::factory()->for($teacher)->create(['name' => 'Informatique']);
+    $class->subjects()->attach([$maths->id, $informatique->id]);
+    $term = Term::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(Appreciations::class)
+        ->set('schoolClassId', $class->id)
+        ->set('termId', $term->id)
+        ->set('subjectId', $maths->id)
+        ->call('updateContent', $student->id, 'Très bon niveau en mathématiques.');
+
+    Livewire::test(Appreciations::class)
+        ->set('schoolClassId', $class->id)
+        ->set('termId', $term->id)
+        ->set('subjectId', $informatique->id)
+        ->call('updateContent', $student->id, 'Progresse bien en informatique.');
+
+    $mathsAppreciation = Appreciation::query()->where('student_id', $student->id)->where('subject_id', $maths->id)->first();
+    $infoAppreciation = Appreciation::query()->where('student_id', $student->id)->where('subject_id', $informatique->id)->first();
+
+    expect($mathsAppreciation->content)->toBe('Très bon niveau en mathématiques.')
+        ->and($infoAppreciation->content)->toBe('Progresse bien en informatique.');
 });
 
 it("only lists a teacher's own appreciation templates", function () {

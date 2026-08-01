@@ -28,9 +28,12 @@ class SecurityHeaders
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data:",
+            // blob: is required for FilePond's canvas-rendered image previews (Filament's FileUpload field).
+            "img-src 'self' data: blob:",
             "font-src 'self' data:",
             "connect-src 'self'",
+            // FilePond's image preview plugin resizes thumbnails in a Web Worker loaded from a blob: URL.
+            "worker-src 'self' blob:",
             "frame-ancestors 'none'",
             "base-uri 'self'",
             "form-action 'self'",

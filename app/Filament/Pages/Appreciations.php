@@ -6,6 +6,7 @@ use App\Models\Appreciation;
 use App\Models\AppreciationTemplate;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Term;
 use App\Services\AppreciationSuggester;
 use BackedEnum;
@@ -28,6 +29,8 @@ class Appreciations extends Page
 
     public ?int $schoolClassId = null;
 
+    public ?int $subjectId = null;
+
     public ?int $termId = null;
 
     public string $type = 'general';
@@ -44,6 +47,32 @@ class Appreciations extends Page
             ->where('user_id', Auth::id())
             ->orderBy('position')
             ->value('id');
+
+        $this->syncSubjectId();
+    }
+
+    public function updatedSchoolClassId(): void
+    {
+        $this->syncSubjectId();
+    }
+
+    private function syncSubjectId(): void
+    {
+        $subjectIds = $this->getSubjectsProperty()->pluck('id');
+
+        if (! $subjectIds->contains($this->subjectId)) {
+            $this->subjectId = $subjectIds->first();
+        }
+    }
+
+    /**
+     * @return Collection<int, Subject>
+     */
+    public function getSubjectsProperty(): Collection
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+
+        return $schoolClass?->subjects()->orderBy('name')->get() ?? collect();
     }
 
     /**
@@ -94,6 +123,7 @@ class Appreciations extends Page
 
         $appreciations = Appreciation::query()
             ->where('school_class_id', $schoolClass->id)
+            ->where('subject_id', $this->subjectId)
             ->where('term_id', $term->id)
             ->where('type', $this->type)
             ->get()
@@ -139,13 +169,14 @@ class Appreciations extends Page
     {
         $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
         $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+        $subject = $this->subjectId ? $this->getSubjectsProperty()->firstWhere('id', $this->subjectId) : null;
         $student = $this->getStudentsProperty()->firstWhere('id', $studentId);
 
         if (! $schoolClass || ! $term || ! $student) {
             return;
         }
 
-        $suggestion = app(AppreciationSuggester::class)->suggest($student, $schoolClass, $term);
+        $suggestion = app(AppreciationSuggester::class)->suggest($student, $schoolClass, $term, $subject);
 
         if ($suggestion === null) {
             return;
@@ -185,6 +216,7 @@ class Appreciations extends Page
         return Appreciation::query()
             ->where('student_id', $studentId)
             ->where('school_class_id', $schoolClass->id)
+            ->where('subject_id', $this->subjectId)
             ->where('term_id', $term->id)
             ->where('type', $this->type)
             ->first();
@@ -202,6 +234,7 @@ class Appreciations extends Page
         $appreciation = Appreciation::query()->firstOrNew([
             'student_id' => $studentId,
             'school_class_id' => $schoolClass->id,
+            'subject_id' => $this->subjectId,
             'term_id' => $term->id,
             'type' => $this->type,
         ]);

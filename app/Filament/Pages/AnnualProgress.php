@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\ProgressionSequence;
 use App\Models\SchoolClass;
+use App\Models\Subject;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -25,6 +26,8 @@ class AnnualProgress extends Page
 
     public ?int $schoolClassId = null;
 
+    public ?int $subjectId = null;
+
     public function mount(): void
     {
         $this->schoolClassId = SchoolClass::query()
@@ -32,6 +35,22 @@ class AnnualProgress extends Page
             ->where('is_archived', false)
             ->orderBy('name')
             ->value('id');
+
+        $this->syncSubjectId();
+    }
+
+    public function updatedSchoolClassId(): void
+    {
+        $this->syncSubjectId();
+    }
+
+    private function syncSubjectId(): void
+    {
+        $subjectIds = $this->getSubjectsProperty()->pluck('id');
+
+        if (! $subjectIds->contains($this->subjectId)) {
+            $this->subjectId = $subjectIds->first();
+        }
     }
 
     /**
@@ -47,6 +66,16 @@ class AnnualProgress extends Page
     }
 
     /**
+     * @return Collection<int, Subject>
+     */
+    public function getSubjectsProperty(): Collection
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+
+        return $schoolClass?->subjects()->orderBy('name')->get() ?? collect();
+    }
+
+    /**
      * @return Collection<int, ProgressionSequence>
      */
     public function getSequencesProperty(): Collection
@@ -57,6 +86,7 @@ class AnnualProgress extends Page
 
         return ProgressionSequence::query()
             ->where('school_class_id', $this->schoolClassId)
+            ->where('subject_id', $this->subjectId)
             ->with('term')
             ->orderBy('position')
             ->get();
