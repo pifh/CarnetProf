@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\StudentSubgroups\Schemas;
 
+use App\Models\SchoolClass;
 use App\Models\Student;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\Select;
@@ -26,6 +27,13 @@ class StudentSubgroupForm
                     ->preload()
                     ->live()
                     ->required(),
+
+                Select::make('subject_id')
+                    ->label('Matière')
+                    ->options(fn (callable $get) => SchoolClass::query()->find($get('school_class_id'))?->subjects()->pluck('name', 'subjects.id') ?? [])
+                    ->visible(fn (callable $get) => SchoolClass::query()->find($get('school_class_id'))?->subjects()->exists() ?? false)
+                    ->required(fn (callable $get) => SchoolClass::query()->find($get('school_class_id'))?->subjects()->exists() ?? false)
+                    ->searchable(),
 
                 TextInput::make('name')
                     ->label('Nom du groupe')

@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'pdf_tools' => [
+        // Path to poppler-utils' pdfimages binary, used to extract the embedded
+        // photos from a class photo-sheet PDF. Override in production if it's
+        // not on $PATH (e.g. PDFIMAGES_BINARY=/usr/bin/pdfimages).
+        'pdfimages_binary' => env('PDFIMAGES_BINARY', 'pdfimages'),
+    ],
+
 ];

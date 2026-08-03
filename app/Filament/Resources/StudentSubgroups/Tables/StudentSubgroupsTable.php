@@ -27,10 +27,18 @@ class StudentSubgroupsTable
                     ->badge()
                     ->color(fn ($record) => $record->schoolClass?->color ?? 'gray')
                     ->sortable(),
+                TextColumn::make('subject.name')
+                    ->label('Matière')
+                    ->placeholder('—'),
                 TextColumn::make('students_count')
                     ->label('Élèves')
                     ->counts('students')
                     ->sortable(),
+                TextColumn::make('groupGeneration.created_at')
+                    ->label('Généré le')
+                    ->dateTime('d/m/Y')
+                    ->placeholder('Manuel')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('name')
             ->recordActions([

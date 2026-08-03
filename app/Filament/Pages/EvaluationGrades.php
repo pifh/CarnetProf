@@ -5,10 +5,12 @@ namespace App\Filament\Pages;
 use App\Models\Evaluation;
 use App\Models\Grade;
 use App\Models\Student;
+use App\Models\StudentSubgroup;
 use Filament\Pages\Page;
 use Filament\Panel;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Response;
 
@@ -56,6 +58,47 @@ class EvaluationGrades extends Page
             });
     }
 
+    /**
+     * @return SupportCollection<int, array{id: int, name: string, students: SupportCollection<int, Student>}>
+     */
+    public function getGroupsProperty(): SupportCollection
+    {
+        $generationId = $this->evaluation->groupGeneration?->id;
+
+        if (! $generationId) {
+            return collect();
+        }
+
+        $students = $this->getStudentsProperty()->keyBy('id');
+
+        return StudentSubgroup::query()
+            ->where('group_generation_id', $generationId)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (StudentSubgroup $subgroup) => [
+                'id' => $subgroup->id,
+                'name' => $subgroup->name,
+                'students' => $subgroup->students()->pluck('students.id')
+                    ->map(fn (int $id) => $students->get($id))
+                    ->filter()
+                    ->values(),
+            ]);
+    }
+
+    /**
+     * @return SupportCollection<int, Student>
+     */
+    public function getUngroupedStudentsProperty(): SupportCollection
+    {
+        if ($this->groups->isEmpty()) {
+            return collect();
+        }
+
+        $groupedIds = $this->groups->flatMap(fn (array $group) => $group['students']->pluck('id'));
+
+        return $this->getStudentsProperty()->reject(fn (Student $student) => $groupedIds->contains($student->id));
+    }
+
     public function getClassAverage(): ?string
     {
         $graded = $this->getStudentsProperty()
@@ -73,13 +116,42 @@ class EvaluationGrades extends Page
 
     public function updateScore(int $studentId, ?string $value): void
     {
-        $value = trim((string) $value);
-        $score = $value === '' ? null : (float) str_replace(',', '.', $value);
+        $this->applyScore($studentId, $this->parseScore($value));
+    }
 
-        if ($score !== null) {
-            $score = max(0, min($score, (float) $this->evaluation->max_score));
+    /**
+     * Copies one score to every member of the group — the fast path for
+     * grading a shared activity. Individual scores can still be tweaked
+     * afterwards via updateScore() for a single student.
+     */
+    public function updateGroupScore(int $subgroupId, ?string $value): void
+    {
+        $group = $this->groups->firstWhere('id', $subgroupId);
+
+        if (! $group) {
+            return;
         }
 
+        $score = $this->parseScore($value);
+
+        foreach ($group['students'] as $student) {
+            $this->applyScore($student->id, $score);
+        }
+    }
+
+    private function parseScore(?string $value): ?float
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return max(0, min((float) str_replace(',', '.', $value), (float) $this->evaluation->max_score));
+    }
+
+    private function applyScore(int $studentId, ?float $score): void
+    {
         $grade = Grade::query()->firstOrNew([
             'evaluation_id' => $this->evaluation->id,
             'student_id' => $studentId,

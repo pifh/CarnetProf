@@ -5,8 +5,10 @@ use App\Filament\Pages\EvaluationGrades;
 use App\Filament\Resources\Evaluations\Pages\ListEvaluations;
 use App\Models\Evaluation;
 use App\Models\Grade;
+use App\Models\GroupGeneration;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\StudentSubgroup;
 use App\Models\Subject;
 use App\Models\Term;
 use App\Models\User;
@@ -65,6 +67,77 @@ it('sets a status like absent and clears the score', function () {
 
     expect($grade->status)->toBe('absent')
         ->and($grade->score)->toBeNull();
+});
+
+it('cascades a group score to every member of that group', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $term = Term::factory()->for($teacher)->create();
+    $evaluation = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['max_score' => 20]);
+    $generation = GroupGeneration::factory()->for($teacher)->for($class, 'schoolClass')->create(['evaluation_id' => $evaluation->id]);
+
+    $groupA = StudentSubgroup::factory()->for($teacher)->for($class, 'schoolClass')->create(['group_generation_id' => $generation->id]);
+    $studentA1 = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $studentA2 = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $groupA->students()->attach([$studentA1->id, $studentA2->id]);
+
+    $groupB = StudentSubgroup::factory()->for($teacher)->for($class, 'schoolClass')->create(['group_generation_id' => $generation->id]);
+    $studentB1 = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $groupB->students()->attach([$studentB1->id]);
+
+    $this->actingAs($teacher);
+
+    Livewire::test(EvaluationGrades::class, ['evaluation' => $evaluation])
+        ->call('updateGroupScore', $groupA->id, '16')
+        ->call('updateGroupScore', $groupB->id, '9');
+
+    foreach ([$studentA1, $studentA2] as $student) {
+        $grade = Grade::query()->where('evaluation_id', $evaluation->id)->where('student_id', $student->id)->first();
+        expect((float) $grade->score)->toBe(16.0)
+            ->and($grade->status)->toBe('graded');
+    }
+
+    $gradeB = Grade::query()->where('evaluation_id', $evaluation->id)->where('student_id', $studentB1->id)->first();
+    expect((float) $gradeB->score)->toBe(9.0);
+});
+
+it("still allows overriding one student's score after a group score was applied", function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $term = Term::factory()->for($teacher)->create();
+    $evaluation = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['max_score' => 20]);
+    $generation = GroupGeneration::factory()->for($teacher)->for($class, 'schoolClass')->create(['evaluation_id' => $evaluation->id]);
+
+    $group = StudentSubgroup::factory()->for($teacher)->for($class, 'schoolClass')->create(['group_generation_id' => $generation->id]);
+    $student1 = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $student2 = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $group->students()->attach([$student1->id, $student2->id]);
+
+    $this->actingAs($teacher);
+
+    Livewire::test(EvaluationGrades::class, ['evaluation' => $evaluation])
+        ->call('updateGroupScore', $group->id, '14')
+        ->call('updateScore', $student1->id, '8');
+
+    $grade1 = Grade::query()->where('evaluation_id', $evaluation->id)->where('student_id', $student1->id)->first();
+    $grade2 = Grade::query()->where('evaluation_id', $evaluation->id)->where('student_id', $student2->id)->first();
+
+    expect((float) $grade1->score)->toBe(8.0)
+        ->and((float) $grade2->score)->toBe(14.0);
+});
+
+it('keeps the flat per-student list for evaluations with no linked group activity', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $term = Term::factory()->for($teacher)->create();
+    Student::factory()->for($teacher)->for($class, 'schoolClass')->count(2)->create();
+    $evaluation = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create();
+
+    $this->actingAs($teacher);
+
+    $groups = Livewire::test(EvaluationGrades::class, ['evaluation' => $evaluation])->get('groups');
+
+    expect($groups)->toHaveCount(0);
 });
 
 it("blocks a teacher from opening another teacher's evaluation grade grid", function () {

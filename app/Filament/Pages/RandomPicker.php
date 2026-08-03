@@ -3,9 +3,12 @@
 namespace App\Filament\Pages;
 
 use App\Models\RandomPick;
+use App\Models\RandomPickSession;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use BackedEnum;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
@@ -25,6 +28,12 @@ class RandomPicker extends Page
 
     public ?int $schoolClassId = null;
 
+    public ?int $subjectId = null;
+
+    public ?int $currentSessionId = null;
+
+    public string $newSessionName = '';
+
     /** @var array<int, int> */
     public array $excludedStudentIds = [];
 
@@ -40,12 +49,28 @@ class RandomPicker extends Page
             ->where('is_archived', false)
             ->orderBy('name')
             ->value('id');
+
+        $this->syncSubjectId();
     }
 
     public function updatedSchoolClassId(): void
     {
-        $this->excludedStudentIds = [];
-        $this->resetRound();
+        $this->closeSession();
+        $this->syncSubjectId();
+    }
+
+    public function updatedSubjectId(): void
+    {
+        $this->closeSession();
+    }
+
+    private function syncSubjectId(): void
+    {
+        $subjectIds = $this->getSubjectsProperty()->pluck('id');
+
+        if (! $subjectIds->contains($this->subjectId)) {
+            $this->subjectId = $subjectIds->first();
+        }
     }
 
     /**
@@ -58,6 +83,16 @@ class RandomPicker extends Page
             ->where('is_archived', false)
             ->orderBy('name')
             ->get();
+    }
+
+    /**
+     * @return Collection<int, Subject>
+     */
+    public function getSubjectsProperty(): Collection
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+
+        return $schoolClass?->subjects()->orderBy('name')->get() ?? collect();
     }
 
     /**
@@ -79,16 +114,107 @@ class RandomPicker extends Page
     }
 
     /**
-     * @return Collection<int, array{student: Student, count: int}>
+     * Every tirage already started for this classe (and matière, when the
+     * class has several) — most recent first, so a teacher can pick up
+     * exactly where they left off instead of losing their progress.
+     *
+     * @return Collection<int, RandomPickSession>
      */
-    public function getHistoryProperty(): Collection
+    public function getSessionsProperty(): Collection
     {
         if (! $this->schoolClassId) {
             return collect();
         }
 
-        $counts = RandomPick::query()
+        $query = RandomPickSession::query()
+            ->where('user_id', Auth::id())
             ->where('school_class_id', $this->schoolClassId)
+            ->withCount('picks');
+
+        $this->subjectId ? $query->where('subject_id', $this->subjectId) : $query->whereNull('subject_id');
+
+        return $query->latest()->get();
+    }
+
+    public function createSession(): void
+    {
+        if (blank($this->newSessionName) || ! $this->schoolClassId) {
+            Notification::make()
+                ->title("Merci d'indiquer un nom pour ce tirage.")
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $session = new RandomPickSession([
+            'school_class_id' => $this->schoolClassId,
+            'subject_id' => $this->subjectId,
+            'name' => $this->newSessionName,
+        ]);
+        $session->user_id = Auth::id();
+        $session->save();
+
+        $this->newSessionName = '';
+        $this->openSession($session->id);
+    }
+
+    public function openSession(int $sessionId): void
+    {
+        $session = RandomPickSession::query()
+            ->where('user_id', Auth::id())
+            ->where('id', $sessionId)
+            ->first();
+
+        if (! $session) {
+            return;
+        }
+
+        $this->currentSessionId = $session->id;
+        $this->excludedStudentIds = [];
+        $this->lastPickedStudentId = null;
+
+        // Resuming a tirage must not repeat someone already interrogated in
+        // it, so the round picks up exactly where it was left off.
+        $this->pickedStudentIdsThisRound = RandomPick::query()
+            ->where('random_pick_session_id', $session->id)
+            ->pluck('student_id')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function closeSession(): void
+    {
+        $this->currentSessionId = null;
+        $this->excludedStudentIds = [];
+        $this->pickedStudentIdsThisRound = [];
+        $this->lastPickedStudentId = null;
+    }
+
+    public function deleteSession(int $sessionId): void
+    {
+        RandomPickSession::query()
+            ->where('user_id', Auth::id())
+            ->where('id', $sessionId)
+            ->delete();
+
+        if ($this->currentSessionId === $sessionId) {
+            $this->closeSession();
+        }
+    }
+
+    /**
+     * @return Collection<int, array{student: Student, count: int}>
+     */
+    public function getSessionHistoryProperty(): Collection
+    {
+        if (! $this->currentSessionId) {
+            return collect();
+        }
+
+        $counts = RandomPick::query()
+            ->where('random_pick_session_id', $this->currentSessionId)
             ->selectRaw('student_id, count(*) as aggregate')
             ->groupBy('student_id')
             ->pluck('aggregate', 'student_id');
@@ -110,6 +236,10 @@ class RandomPicker extends Page
 
     public function pick(): void
     {
+        if (! $this->currentSessionId) {
+            return;
+        }
+
         $pool = $this->getStudentsProperty()
             ->reject(fn (Student $student) => in_array($student->id, $this->excludedStudentIds, true));
 
@@ -129,7 +259,11 @@ class RandomPicker extends Page
         $this->lastPickedStudentId = $student->id;
         $this->pickedStudentIdsThisRound[] = $student->id;
 
-        $pick = new RandomPick(['student_id' => $student->id, 'school_class_id' => $this->schoolClassId]);
+        $pick = new RandomPick([
+            'student_id' => $student->id,
+            'school_class_id' => $this->schoolClassId,
+            'random_pick_session_id' => $this->currentSessionId,
+        ]);
         $pick->user_id = Auth::id();
         $pick->save();
     }

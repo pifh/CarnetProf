@@ -10,7 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'school_class_id', 'first_name', 'last_name', 'sex', 'birth_date', 'address',
@@ -64,8 +66,23 @@ class Student extends Model
         return $this->hasMany(RandomPick::class);
     }
 
+    public function photos(): HasMany
+    {
+        return $this->hasMany(StudentPhoto::class)->orderByDesc('created_at');
+    }
+
+    public function currentPhoto(): HasOne
+    {
+        return $this->hasOne(StudentPhoto::class)->where('is_current', true);
+    }
+
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    public function getPhotoUrlAttribute(): ?string
+    {
+        return $this->currentPhoto ? Storage::disk('public')->url($this->currentPhoto->path) : null;
     }
 }

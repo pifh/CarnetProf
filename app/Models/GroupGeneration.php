@@ -8,19 +8,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['school_class_id', 'subject_id', 'term_id', 'title', 'exam_date', 'coefficient', 'max_score'])]
-class Evaluation extends Model
+#[Fillable(['school_class_id', 'subject_id', 'activity_name', 'term_id', 'evaluation_id', 'mode', 'group_count', 'group_size', 'groups', 'criteria'])]
+class GroupGeneration extends Model
 {
     use BelongsToTeacher, HasFactory;
 
     protected function casts(): array
     {
         return [
-            'exam_date' => 'date',
-            'coefficient' => 'decimal:2',
-            'max_score' => 'decimal:2',
+            'groups' => 'array',
+            'criteria' => 'array',
         ];
     }
 
@@ -39,13 +37,13 @@ class Evaluation extends Model
         return $this->belongsTo(Term::class);
     }
 
-    public function grades(): HasMany
+    public function evaluation(): BelongsTo
     {
-        return $this->hasMany(Grade::class);
+        return $this->belongsTo(Evaluation::class);
     }
 
-    public function groupGeneration(): HasOne
+    public function subgroups(): HasMany
     {
-        return $this->hasOne(GroupGeneration::class);
+        return $this->hasMany(StudentSubgroup::class);
     }
 }

@@ -31,42 +31,46 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($this->students as $student)
-                        <tr class="border-t border-gray-100 dark:border-white/5" wire:key="student-{{ $student->id }}">
-                            <td class="p-2">{{ $student->first_name }} {{ $student->last_name }}</td>
-                            <td class="p-2">
-                                <div class="flex items-center gap-1">
-                                    <x-filament::input.wrapper class="max-w-[6rem]">
-                                        <x-filament::input
-                                            type="text"
-                                            inputmode="decimal"
-                                            :value="$student->grade?->score"
-                                            wire:change="updateScore({{ $student->id }}, $event.target.value)"
-                                        />
-                                    </x-filament::input.wrapper>
-                                    <span class="text-gray-500 dark:text-gray-400">/ {{ rtrim(rtrim(number_format($evaluation->max_score, 2), '0'), '.') }}</span>
-                                </div>
-                            </td>
-                            <td class="p-2">
-                                <div class="flex flex-wrap gap-1">
-                                    @foreach ([
-                                        'absent' => 'Absent',
-                                        'exempted' => 'Dispensé',
-                                        'to_retake' => 'À rattraper',
-                                        'not_graded' => 'Non noté',
-                                    ] as $statusValue => $statusLabel)
-                                        <x-filament::button
-                                            size="xs"
-                                            :color="$student->grade?->status === $statusValue ? 'danger' : 'gray'"
-                                            wire:click="setStatus({{ $student->id }}, '{{ $statusValue }}')"
-                                        >
-                                            {{ $statusLabel }}
-                                        </x-filament::button>
-                                    @endforeach
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
+                    @if ($this->groups->isNotEmpty())
+                        @foreach ($this->groups as $group)
+                            <tr class="border-t border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5" wire:key="group-{{ $group['id'] }}">
+                                <td class="p-2" colspan="3">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="font-medium text-gray-900 dark:text-white">{{ $group['name'] }}</span>
+                                        <div class="flex items-center gap-1">
+                                            <x-filament::input.wrapper class="max-w-[6rem]">
+                                                <x-filament::input
+                                                    type="text"
+                                                    inputmode="decimal"
+                                                    placeholder="Note groupe"
+                                                    wire:change="updateGroupScore({{ $group['id'] }}, $event.target.value)"
+                                                />
+                                            </x-filament::input.wrapper>
+                                            <span class="text-xs text-gray-500 dark:text-gray-400">
+                                                / {{ rtrim(rtrim(number_format($evaluation->max_score, 2), '0'), '.') }} — copiée à tout le groupe, modifiable ensuite élève par élève
+                                            </span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            @foreach ($group['students'] as $student)
+                                @include('filament.pages.partials.evaluation-grade-row', ['student' => $student, 'evaluation' => $evaluation])
+                            @endforeach
+                        @endforeach
+
+                        @if ($this->ungroupedStudents->isNotEmpty())
+                            <tr class="border-t border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-white/5">
+                                <td class="p-2 font-medium text-gray-500 dark:text-gray-400" colspan="3">Élèves sans groupe</td>
+                            </tr>
+                            @foreach ($this->ungroupedStudents as $student)
+                                @include('filament.pages.partials.evaluation-grade-row', ['student' => $student, 'evaluation' => $evaluation])
+                            @endforeach
+                        @endif
+                    @else
+                        @foreach ($this->students as $student)
+                            @include('filament.pages.partials.evaluation-grade-row', ['student' => $student, 'evaluation' => $evaluation])
+                        @endforeach
+                    @endif
                 </tbody>
             </table>
         </div>

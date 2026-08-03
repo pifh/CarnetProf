@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['student_id', 'school_class_id'])]
+#[Fillable(['student_id', 'school_class_id', 'random_pick_session_id'])]
 class RandomPick extends Model
 {
     use BelongsToTeacher, HasFactory;
@@ -21,5 +21,10 @@ class RandomPick extends Model
     public function schoolClass(): BelongsTo
     {
         return $this->belongsTo(SchoolClass::class);
+    }
+
+    public function session(): BelongsTo
+    {
+        return $this->belongsTo(RandomPickSession::class, 'random_pick_session_id');
     }
 }

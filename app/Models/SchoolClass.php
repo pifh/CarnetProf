@@ -60,6 +60,11 @@ class SchoolClass extends Model
         return $this->hasMany(LogbookEntry::class);
     }
 
+    public function groupGenerations(): HasMany
+    {
+        return $this->hasMany(GroupGeneration::class);
+    }
+
     public static function currentSchoolYear(): string
     {
         $now = Carbon::now();

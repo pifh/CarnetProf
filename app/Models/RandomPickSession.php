@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['school_class_id', 'subject_id', 'name', 'color', 'group_generation_id'])]
-class StudentSubgroup extends Model
+#[Fillable(['school_class_id', 'subject_id', 'name'])]
+class RandomPickSession extends Model
 {
     use BelongsToTeacher, HasFactory;
 
@@ -24,13 +24,8 @@ class StudentSubgroup extends Model
         return $this->belongsTo(Subject::class);
     }
 
-    public function groupGeneration(): BelongsTo
+    public function picks(): HasMany
     {
-        return $this->belongsTo(GroupGeneration::class);
-    }
-
-    public function students(): BelongsToMany
-    {
-        return $this->belongsToMany(Student::class);
+        return $this->hasMany(RandomPick::class);
     }
 }
