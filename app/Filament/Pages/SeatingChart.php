@@ -18,24 +18,23 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
- * A "plan" is a named room layout (desks, capacities, teacher's desk
- * position) with no class of its own — configured once, then reused for
- * however many different classes actually sit in that room. An
- * "application" is one (plan, class) pair put to use on a given date: its
- * own seat assignments, its own locked/blocked seats, its own archive
- * state. Randomizing under the "avoid repeat seat/neighbor" criteria only
- * ever looks at sibling applications of the *same* plan — a different room
- * layout's history is irrelevant.
+ * "Plans de classe": pick a room layout (configured on the "Disposition des
+ * salles" page — SeatingRoomLayouts) and a class, then place students for a
+ * given date. Each (layout, class, date) triple is a SeatingPlanApplication
+ * — its own seat assignments, its own locked/blocked seats, its own archive
+ * state. This page never edits desks: the room layout is read-only here,
+ * browsed via the date sidebar to make it easy to look back at previous
+ * arrangements for the same room and class before creating a new one.
  */
 class SeatingChart extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
 
-    protected static ?string $navigationLabel = 'Plan de classe';
+    protected static ?string $navigationLabel = 'Plans de classe';
 
-    protected static ?string $title = 'Plan de classe';
+    protected static ?string $title = 'Plans de classe';
 
-    protected static ?int $navigationSort = 23;
+    protected static ?int $navigationSort = 24;
 
     protected string $view = 'filament.pages.seating-chart';
 
@@ -46,15 +45,6 @@ class SeatingChart extends Page
     public ?int $applicationId = null;
 
     public ?int $selectedStudentId = null;
-
-    public int $gridRows = 3;
-
-    public int $gridCols = 4;
-
-    public int $newDeskCapacity = 2;
-
-    /** @var 'desk'|'blocked' */
-    public string $newCellType = 'desk';
 
     public bool $showArchivedApplications = false;
 
@@ -80,7 +70,10 @@ class SeatingChart extends Page
             ->orderBy('name')
             ->value('id');
 
-        $this->selectDefaultPlan();
+        $this->planId = SeatingPlan::query()->orderBy('name')->value('id');
+
+        $this->syncPlanFields();
+        $this->selectApplicationForPlanAndClass();
     }
 
     public function updatedSchoolClassId(): void
@@ -93,17 +86,9 @@ class SeatingChart extends Page
     public function updatedPlanId(): void
     {
         $this->selectedStudentId = null;
-        $this->gridRows = 3;
-        $this->gridCols = 4;
         $this->showArchivedApplications = false;
         $this->syncPlanFields();
         $this->selectApplicationForPlanAndClass();
-    }
-
-    public function updatedApplicationId(): void
-    {
-        $this->selectedStudentId = null;
-        $this->syncApplicationFields();
     }
 
     public function updatedShowArchivedApplications(): void
@@ -117,27 +102,23 @@ class SeatingChart extends Page
     }
 
     /**
-     * Picks (or bootstraps) a base plan for the page to open on. Plans have
-     * no class of their own, so this only ever runs once, on mount — after
-     * that, the teacher's own selection drives which plan is active.
+     * Called when the teacher clicks a date in the sidebar.
      */
-    private function selectDefaultPlan(): void
+    public function selectApplication(int $applicationId): void
     {
-        $this->gridRows = 3;
-        $this->gridCols = 4;
-        $this->showArchivedApplications = false;
+        $exists = SeatingPlanApplication::query()
+            ->where('id', $applicationId)
+            ->where('seating_plan_id', $this->planId)
+            ->where('school_class_id', $this->schoolClassId)
+            ->exists();
 
-        $plan = SeatingPlan::query()->orderBy('name')->first();
-
-        if (! $plan) {
-            $plan = new SeatingPlan(['name' => 'Plan de classe']);
-            $plan->user_id = Auth::id();
-            $plan->save();
+        if (! $exists) {
+            return;
         }
 
-        $this->planId = $plan->id;
-        $this->syncPlanFields();
-        $this->selectApplicationForPlanAndClass();
+        $this->applicationId = $applicationId;
+        $this->selectedStudentId = null;
+        $this->syncApplicationFields();
     }
 
     private function selectApplicationForPlanAndClass(): void
@@ -197,8 +178,8 @@ class SeatingChart extends Page
     }
 
     /**
-     * Every plan the teacher has, independent of any class — a plan is a
-     * reusable base layout, picked and then paired with a class.
+     * Every layout the teacher has, independent of any class — a layout is a
+     * reusable room configuration, picked here and then paired with a class.
      *
      * @return Collection<int, SeatingPlan>
      */
@@ -208,6 +189,10 @@ class SeatingChart extends Page
     }
 
     /**
+     * Every dated use of the current (layout, class) pair, most recent
+     * first — the sidebar's whole reason for existing: making it easy to
+     * look back before creating the next one.
+     *
      * @return Collection<int, SeatingPlanApplication>
      */
     public function getApplicationsProperty(): Collection
@@ -295,8 +280,8 @@ class SeatingChart extends Page
         $maxCol = $desks->max('position_col');
 
         return [
-            'rows' => max($this->gridRows, $maxRow !== null ? $maxRow + 1 : 0),
-            'cols' => max($this->gridCols, $maxCol !== null ? $maxCol + 1 : 0),
+            'rows' => $maxRow !== null ? $maxRow + 1 : 0,
+            'cols' => $maxCol !== null ? $maxCol + 1 : 0,
         ];
     }
 
@@ -441,114 +426,9 @@ class SeatingChart extends Page
         return $violations;
     }
 
-    public function createPlan(): void
-    {
-        $plan = new SeatingPlan(['name' => $this->nextPlanName()]);
-        $plan->user_id = Auth::id();
-        $plan->save();
-
-        $this->planId = $plan->id;
-        $this->selectedStudentId = null;
-        $this->gridRows = 3;
-        $this->gridCols = 4;
-        $this->syncPlanFields();
-        $this->selectApplicationForPlanAndClass();
-    }
-
     /**
-     * Copies a plan's room layout (desks, teacher's desk) into a brand new,
-     * independent plan — for when the room itself needs a genuinely
-     * different arrangement, as opposed to just a new dated use of the same
-     * one (see createApplication()). No seat assignments carry over: they
-     * belong to applications, and the new plan starts with none.
-     */
-    public function duplicatePlan(): void
-    {
-        $plan = $this->resolvePlan();
-
-        if (! $plan) {
-            return;
-        }
-
-        $newPlan = new SeatingPlan([
-            'name' => $this->nextCopyName($plan->name),
-            'teacher_desk_position' => $plan->teacher_desk_position,
-        ]);
-        $newPlan->user_id = Auth::id();
-        $newPlan->save();
-
-        foreach ($plan->desks as $desk) {
-            SeatingPlanDesk::create([
-                'seating_plan_id' => $newPlan->id,
-                'position_row' => $desk->position_row,
-                'position_col' => $desk->position_col,
-                'capacity' => $desk->capacity,
-                'is_blocked' => $desk->is_blocked,
-            ]);
-        }
-
-        $this->planId = $newPlan->id;
-        $this->selectedStudentId = null;
-        $this->gridRows = 3;
-        $this->gridCols = 4;
-        $this->syncPlanFields();
-        $this->selectApplicationForPlanAndClass();
-    }
-
-    public function renamePlan(string $name): void
-    {
-        $plan = $this->resolvePlan();
-        $name = trim($name);
-
-        if (! $plan || $name === '') {
-            return;
-        }
-
-        $exists = SeatingPlan::query()
-            ->where('name', $name)
-            ->where('id', '!=', $plan->id)
-            ->exists();
-
-        if ($exists) {
-            Notification::make()->title('Un plan porte déjà ce nom.')->danger()->send();
-
-            return;
-        }
-
-        $plan->name = $name;
-        $plan->save();
-    }
-
-    public function setTeacherDeskPosition(?string $position): void
-    {
-        $plan = $this->resolvePlan();
-
-        if (! $plan) {
-            return;
-        }
-
-        $plan->teacher_desk_position = in_array($position, ['left', 'center', 'right'], true) ? $position : null;
-        $plan->save();
-
-        $this->teacherDeskPosition = $plan->teacher_desk_position;
-    }
-
-    public function deletePlan(): void
-    {
-        $plan = $this->resolvePlan();
-
-        if (! $plan) {
-            return;
-        }
-
-        $plan->delete();
-
-        $this->selectDefaultPlan();
-    }
-
-    /**
-     * A new dated use of the current plan's room layout. Starts as a copy of
-     * the current application's seating (a convenient starting point the
+     * A new dated use of the current (layout, class) pair. Starts as a copy
+     * of the current application's seating (a convenient starting point the
      * teacher can then re-randomize or hand-edit) but is otherwise fully
      * independent: its own locks, its own blocked seats, its own archive
      * state, and its own place in the "avoid repeat seat/neighbor" history.
@@ -630,132 +510,6 @@ class SeatingChart extends Page
         $application->save();
 
         $this->effectiveDate = $date ?? '';
-    }
-
-    public function addRow(): void
-    {
-        $this->gridRows = min($this->gridRows + 1, 12);
-    }
-
-    public function addColumn(): void
-    {
-        $this->gridCols = min($this->gridCols + 1, 12);
-    }
-
-    public function removeRow(): void
-    {
-        $plan = $this->resolvePlan();
-
-        if (! $plan) {
-            return;
-        }
-
-        $lastRow = $this->gridSize['rows'] - 1;
-
-        if ($lastRow < 0) {
-            return;
-        }
-
-        SeatingPlanDesk::query()->where('seating_plan_id', $plan->id)->where('position_row', $lastRow)->delete();
-
-        $this->gridRows = max(1, $this->gridRows - 1);
-        $this->selectedStudentId = null;
-    }
-
-    public function removeColumn(): void
-    {
-        $plan = $this->resolvePlan();
-
-        if (! $plan) {
-            return;
-        }
-
-        $lastCol = $this->gridSize['cols'] - 1;
-
-        if ($lastCol < 0) {
-            return;
-        }
-
-        SeatingPlanDesk::query()->where('seating_plan_id', $plan->id)->where('position_col', $lastCol)->delete();
-
-        $this->gridCols = max(1, $this->gridCols - 1);
-        $this->selectedStudentId = null;
-    }
-
-    public function addDesk(int $row, int $col): void
-    {
-        $plan = $this->resolvePlan();
-
-        if (! $plan) {
-            return;
-        }
-
-        $exists = SeatingPlanDesk::query()
-            ->where('seating_plan_id', $plan->id)
-            ->where('position_row', $row)
-            ->where('position_col', $col)
-            ->exists();
-
-        if ($exists) {
-            return;
-        }
-
-        SeatingPlanDesk::create([
-            'seating_plan_id' => $plan->id,
-            'position_row' => $row,
-            'position_col' => $col,
-            'capacity' => in_array($this->newDeskCapacity, [1, 2, 3], true) ? $this->newDeskCapacity : 2,
-            'is_blocked' => $this->newCellType === 'blocked',
-        ]);
-    }
-
-    public function removeDesk(int $deskId): void
-    {
-        $plan = $this->resolvePlan();
-
-        if (! $plan) {
-            return;
-        }
-
-        SeatingPlanDesk::query()->where('id', $deskId)->where('seating_plan_id', $plan->id)->delete();
-
-        $this->selectedStudentId = null;
-    }
-
-    public function toggleDeskCapacity(int $deskId): void
-    {
-        $plan = $this->resolvePlan();
-
-        if (! $plan) {
-            return;
-        }
-
-        $desk = SeatingPlanDesk::query()->where('id', $deskId)->where('seating_plan_id', $plan->id)->first();
-
-        if (! $desk) {
-            return;
-        }
-
-        // Blocked slots can be sized down to a single seat (e.g. one reserved
-        // spot rather than a whole table); normal desks stay 2↔3, matching
-        // the two real bench sizes a classroom actually has.
-        $newCapacity = $desk->is_blocked
-            ? match ($desk->capacity) {
-                1 => 2,
-                2 => 3,
-                default => 1,
-            }
-        : ($desk->capacity === 3 ? 2 : 3);
-
-        if ($newCapacity < $desk->capacity) {
-            SeatingPlanSeat::query()
-                ->where('seating_plan_desk_id', $desk->id)
-                ->where('seat_index', '>=', $newCapacity)
-                ->delete();
-        }
-
-        $desk->capacity = $newCapacity;
-        $desk->save();
     }
 
     public function selectStudent(int $studentId): void
@@ -1154,32 +908,5 @@ class SeatingChart extends Page
             ->delete();
 
         $this->selectedStudentId = null;
-    }
-
-    private function nextPlanName(): string
-    {
-        $existingNames = SeatingPlan::query()->pluck('name');
-        $index = 1;
-
-        do {
-            $name = 'Plan '.$index;
-            $index++;
-        } while ($existingNames->contains($name));
-
-        return $name;
-    }
-
-    private function nextCopyName(string $baseName): string
-    {
-        $existingNames = SeatingPlan::query()->pluck('name');
-        $candidate = $baseName.' (copie)';
-        $suffix = 2;
-
-        while ($existingNames->contains($candidate)) {
-            $candidate = $baseName.' (copie '.$suffix.')';
-            $suffix++;
-        }
-
-        return $candidate;
     }
 }

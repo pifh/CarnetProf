@@ -24,7 +24,7 @@ class GradeTracking extends Page
 
     protected static ?string $title = 'Suivi des notes';
 
-    protected static ?int $navigationSort = 27;
+    protected static ?int $navigationSort = 28;
 
     protected string $view = 'filament.pages.grade-tracking';
 

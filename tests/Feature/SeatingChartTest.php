@@ -10,17 +10,32 @@ use App\Models\Student;
 use App\Models\User;
 use Livewire\Livewire;
 
-it('creates a default plan and a default application for a class with none', function () {
+/**
+ * Desks belong to a plan (room layout), configured on the "Disposition des
+ * salles" page (see SeatingRoomLayoutsTest.php) — SeatingChart never edits
+ * them, so tests here create them directly instead of going through a
+ * component action.
+ */
+function seatingDesk(SeatingPlan $plan, int $row = 0, int $col = 0, int $capacity = 2, bool $blocked = false): SeatingPlanDesk
+{
+    return SeatingPlanDesk::factory()->for($plan, 'seatingPlan')->create([
+        'position_row' => $row,
+        'position_col' => $col,
+        'capacity' => $capacity,
+        'is_blocked' => $blocked,
+    ]);
+}
+
+it('creates a default application for an existing plan and class', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
 
     $this->actingAs($teacher);
 
-    $component = Livewire::test(SeatingChart::class)->set('schoolClassId', $class->id);
-
-    $plan = SeatingPlan::query()->first();
-
-    expect($plan)->not->toBeNull()->and($plan->name)->toBe('Plan de classe');
+    $component = Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $application = SeatingPlanApplication::query()
         ->where('seating_plan_id', $plan->id)
@@ -31,37 +46,20 @@ it('creates a default plan and a default application for a class with none', fun
         ->and($component->get('applicationId'))->toBe($application->id);
 });
 
-it('creates additional uniquely named plans for the same teacher', function () {
-    $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-
-    $this->actingAs($teacher);
-
-    Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('createPlan')
-        ->call('createPlan');
-
-    $names = SeatingPlan::query()->orderBy('id')->pluck('name');
-
-    expect($names->all())->toBe(['Plan de classe', 'Plan 1', 'Plan 2']);
-});
-
 it('reuses the same plan across two different classes, each with its own independent application', function () {
     $teacher = User::factory()->create();
     $classA = SchoolClass::factory()->for($teacher)->create();
     $classB = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($classA, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($classB, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $classA->id)
-        ->call('addDesk', 0, 0);
-
-    $planId = $component->get('planId');
-    $desk = SeatingPlanDesk::query()->where('seating_plan_id', $planId)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $classA->id);
 
     $component
         ->call('selectStudent', $studentA->id)
@@ -73,7 +71,7 @@ it('reuses the same plan across two different classes, each with its own indepen
     // resolves — and lets the teacher seat — a wholly separate application.
     $component->set('schoolClassId', $classB->id);
 
-    expect($component->get('planId'))->toBe($planId)
+    expect($component->get('planId'))->toBe($plan->id)
         ->and($component->get('applicationId'))->not->toBe($applicationForA);
 
     $component
@@ -84,26 +82,23 @@ it('reuses the same plan across two different classes, each with its own indepen
 
     expect(SeatingPlanSeat::query()->where('seating_plan_application_id', $applicationForA)->first()->student_id)->toBe($studentA->id)
         ->and(SeatingPlanSeat::query()->where('seating_plan_application_id', $applicationForB)->first()->student_id)->toBe($studentB->id)
-        ->and(SeatingPlanDesk::query()->where('seating_plan_id', $planId)->count())->toBe(1);
+        ->and(SeatingPlanDesk::query()->where('seating_plan_id', $plan->id)->count())->toBe(1);
 });
 
-it('places a desk on the grid and assigns a student to it by clicking', function () {
+it('assigns a student to a desk by clicking', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan);
 
     $this->actingAs($teacher);
 
-    $component = Livewire::test(SeatingChart::class)
+    Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('selectStudent', $student->id);
-
-    $desk = SeatingPlanDesk::query()->where('position_row', 0)->where('position_col', 0)->first();
-
-    expect($desk)->not->toBeNull()->and($desk->capacity)->toBe(2);
-
-    $component->call('seatClicked', $desk->id, 0);
+        ->call('selectStudent', $student->id)
+        ->call('seatClicked', $desk->id, 0);
 
     $seat = SeatingPlanSeat::query()->where('seating_plan_desk_id', $desk->id)->where('seat_index', 0)->first();
 
@@ -114,16 +109,15 @@ it('moves a seated student to an empty seat, vacating the old one', function () 
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $deskA = seatingDesk($plan, 0, 0);
+    $deskB = seatingDesk($plan, 0, 1);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 0, 1);
-
-    $deskA = SeatingPlanDesk::query()->where('position_col', 0)->first();
-    $deskB = SeatingPlanDesk::query()->where('position_col', 1)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $student->id)
@@ -140,16 +134,15 @@ it('swaps two seated students when placing one onto an occupied seat', function 
     $class = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $deskA = seatingDesk($plan, 0, 0);
+    $deskB = seatingDesk($plan, 0, 1);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 0, 1);
-
-    $deskA = SeatingPlanDesk::query()->where('position_col', 0)->first();
-    $deskB = SeatingPlanDesk::query()->where('position_col', 1)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $studentA->id)
@@ -168,14 +161,14 @@ it('bumps the occupant to unassigned when an unassigned student takes their seat
     $class = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $studentA->id)
@@ -187,180 +180,61 @@ it('bumps the occupant to unassigned when an unassigned student takes their seat
         ->and(SeatingPlanSeat::query()->where('student_id', $studentA->id)->exists())->toBeFalse();
 });
 
-it('removes a desk and frees its seated students', function () {
+it('does not allow placing a student on a blocked (whole-desk) slot', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan, 0, 0, blocked: true);
 
     $this->actingAs($teacher);
 
-    $component = Livewire::test(SeatingChart::class)
+    Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
-
-    $component
         ->call('selectStudent', $student->id)
-        ->call('seatClicked', $desk->id, 0)
-        ->call('removeDesk', $desk->id);
+        ->call('seatClicked', $desk->id, 0);
 
-    expect(SeatingPlanDesk::query()->find($desk->id))->toBeNull()
-        ->and(SeatingPlanSeat::query()->where('student_id', $student->id)->exists())->toBeFalse();
+    expect(SeatingPlanSeat::query()->where('seating_plan_desk_id', $desk->id)->exists())->toBeFalse();
 });
 
-it('drops the overflow seat when a desk shrinks from 3 to 2 seats', function () {
+it('excludes a blocked slot from randomization but still counts it toward column numbering', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
-    $students = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'seating_allowed_columns' => ['3'],
+    ]);
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    seatingDesk($plan, 0, 0, capacity: 2, blocked: true);
+    $desk = seatingDesk($plan, 0, 1);
 
     $this->actingAs($teacher);
 
-    $component = Livewire::test(SeatingChart::class)
+    Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->set('newDeskCapacity', 3)
-        ->call('addDesk', 0, 0);
+        ->call('randomize');
 
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
+    $seat = SeatingPlanSeat::query()->where('student_id', $student->id)->first();
 
-    foreach ($students as $index => $student) {
-        $component->call('selectStudent', $student->id)->call('seatClicked', $desk->id, $index);
-    }
-
-    expect(SeatingPlanSeat::query()->where('seating_plan_desk_id', $desk->id)->count())->toBe(3);
-
-    $component->call('toggleDeskCapacity', $desk->id);
-
-    expect(SeatingPlanDesk::query()->find($desk->id)->capacity)->toBe(2)
-        ->and(SeatingPlanSeat::query()->where('seating_plan_desk_id', $desk->id)->count())->toBe(2)
-        ->and(SeatingPlanSeat::query()->where('student_id', $students->last()->id)->exists())->toBeFalse();
-});
-
-it('adds a row and a column, then removes them again', function () {
-    $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-
-    $this->actingAs($teacher);
-
-    $component = Livewire::test(SeatingChart::class)->set('schoolClassId', $class->id);
-
-    // Assert on the raw gridRows/gridCols properties rather than the
-    // computed gridSize: Livewire's testing harness memoizes computed
-    // get*Property() results on the shared component instance across
-    // ->call()s within one test, so a second read can return a stale value
-    // even though gridRows/gridCols themselves are always correct (verified
-    // against a real request cycle via tinker).
-    $baselineRows = $component->get('gridRows');
-    $baselineCols = $component->get('gridCols');
-
-    $component->call('addRow')->call('addColumn');
-
-    expect($component->get('gridRows'))->toBe($baselineRows + 1)
-        ->and($component->get('gridCols'))->toBe($baselineCols + 1);
-
-    $component->call('removeRow')->call('removeColumn');
-
-    expect($component->get('gridRows'))->toBe($baselineRows)
-        ->and($component->get('gridCols'))->toBe($baselineCols);
-});
-
-it('removing a row deletes the desks that sat in it', function () {
-    $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-
-    $this->actingAs($teacher);
-
-    $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 1, 0);
-
-    expect(SeatingPlanDesk::query()->count())->toBe(2);
-
-    // The grid is at least 3 rows tall by default, so row 2 (the last one) is
-    // empty — removing it should shrink the grid without touching desks.
-    $component->call('removeRow');
-
-    expect(SeatingPlanDesk::query()->count())->toBe(2);
-
-    // Keep removing until the desk at row 1 is the last row and gets swept.
-    $component->call('removeRow');
-
-    expect(SeatingPlanDesk::query()->where('position_row', 1)->exists())->toBeFalse()
-        ->and(SeatingPlanDesk::query()->where('position_row', 0)->exists())->toBeTrue();
-});
-
-it('duplicates a plan with its desks but no seat assignments', function () {
-    $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
-
-    $this->actingAs($teacher);
-
-    $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
-
-    $component
-        ->call('selectStudent', $student->id)
-        ->call('seatClicked', $desk->id, 0)
-        ->call('duplicatePlan');
-
-    $copy = SeatingPlan::query()->where('name', 'Plan de classe (copie)')->first();
-
-    expect($copy)->not->toBeNull()
-        ->and($component->get('planId'))->toBe($copy->id);
-
-    $copiedDesk = SeatingPlanDesk::query()->where('seating_plan_id', $copy->id)->first();
-    $copiedApplication = SeatingPlanApplication::query()->where('seating_plan_id', $copy->id)->first();
-
-    expect($copiedDesk)->not->toBeNull()
-        ->and($copiedApplication)->not->toBeNull()
-        ->and(SeatingPlanSeat::query()->where('seating_plan_application_id', $copiedApplication->id)->exists())->toBeFalse();
-});
-
-it('rejects renaming a plan to a name already used by the same teacher', function () {
-    $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-
-    $this->actingAs($teacher);
-
-    $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('createPlan');
-
-    $component->call('renamePlan', 'Plan de classe');
-
-    expect(SeatingPlan::query()->where('name', 'Plan 1')->exists())->toBeTrue();
-});
-
-it('deletes a plan and falls back to a fresh default plan', function () {
-    $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-
-    $this->actingAs($teacher);
-
-    $component = Livewire::test(SeatingChart::class)->set('schoolClassId', $class->id);
-    $planId = $component->get('planId');
-
-    $component->call('deletePlan');
-
-    expect(SeatingPlan::query()->find($planId))->toBeNull()
-        ->and(SeatingPlan::query()->count())->toBe(1);
+    // The blocked slot at column 0 occupies absolute columns 1-2, so the
+    // single desk at grid column 1 starts at absolute column 3 (1-based).
+    expect($seat->seating_plan_desk_id)->toBe($desk->id)
+        ->and($seat->seat_index)->toBe(0);
 });
 
 it('randomizes seating up to the available desk capacity', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $students = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    seatingDesk($plan);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
         ->call('randomize');
 
     $seatedIds = SeatingPlanSeat::query()->pluck('student_id');
@@ -374,30 +248,19 @@ it('clears all seat assignments', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan);
 
     $this->actingAs($teacher);
 
-    $component = Livewire::test(SeatingChart::class)
+    Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
-
-    $component
         ->call('selectStudent', $student->id)
         ->call('seatClicked', $desk->id, 0)
         ->call('clearSeats');
 
     expect(SeatingPlanSeat::query()->count())->toBe(0);
-});
-
-it("prevents a teacher from updating or deleting another teacher's seating plan", function () {
-    $teacher = User::factory()->create();
-    $otherTeacher = User::factory()->create();
-    $plan = SeatingPlan::factory()->for($otherTeacher)->create();
-
-    expect($teacher->can('update', $plan))->toBeFalse()
-        ->and($teacher->can('delete', $plan))->toBeFalse();
 });
 
 it("prevents a teacher from updating or deleting another teacher's seating plan application", function () {
@@ -416,16 +279,18 @@ it('seats a next-to pair at the same desk when randomizing', function () {
     $class = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
-    $others = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(2)->create();
+    Student::factory()->for($teacher)->for($class, 'schoolClass')->count(2)->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    seatingDesk($plan, 0, 0);
+    seatingDesk($plan, 0, 1);
 
     $studentA->seatingNextTo()->sync([$studentB->id]);
 
     $this->actingAs($teacher);
 
     Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 0, 1)
         ->call('randomize');
 
     $seatA = SeatingPlanSeat::query()->where('student_id', $studentA->id)->first();
@@ -441,14 +306,16 @@ it('respects 1-based allowed rows when randomizing', function () {
         'seating_allowed_rows' => ['1'],
     ]);
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    seatingDesk($plan, 0, 0);
+    seatingDesk($plan, 1, 0);
+    seatingDesk($plan, 2, 0);
 
     $this->actingAs($teacher);
 
     Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 1, 0)
-        ->call('addDesk', 2, 0)
         ->call('randomize');
 
     $seat = SeatingPlanSeat::query()->where('student_id', $student->id)->first();
@@ -465,14 +332,16 @@ it('respects 1-based allowed columns using the absolute seat position, not the d
         'seating_allowed_columns' => ['2'],
     ]);
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    seatingDesk($plan, 0, 0);
+    seatingDesk($plan, 0, 1);
+    seatingDesk($plan, 0, 2);
 
     $this->actingAs($teacher);
 
     Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 0, 1)
-        ->call('addDesk', 0, 2)
         ->call('randomize');
 
     $seat = SeatingPlanSeat::query()->where('student_id', $student->id)->first();
@@ -489,15 +358,17 @@ it('keeps a not-next-to pair off the same desk when randomizing', function () {
     $class = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    seatingDesk($plan, 0, 0);
+    seatingDesk($plan, 0, 1);
 
     $studentA->seatingNotNextTo()->sync([$studentB->id]);
 
     $this->actingAs($teacher);
 
     Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 0, 1)
         ->call('randomize');
 
     $seatA = SeatingPlanSeat::query()->where('student_id', $studentA->id)->first();
@@ -512,6 +383,8 @@ it('only pulls seating pair constraints between students within the randomized p
     $otherClass = SchoolClass::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $outsider = Student::factory()->for($teacher)->for($otherClass, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    seatingDesk($plan);
 
     // A stray pair referencing a student outside this class's pool must not
     // break constraint gathering (whereIn on both sides excludes it).
@@ -520,8 +393,8 @@ it('only pulls seating pair constraints between students within the randomized p
     $this->actingAs($teacher);
 
     Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
         ->call('randomize');
 
     expect(SeatingPlanSeat::query()->where('student_id', $student->id)->exists())->toBeTrue();
@@ -532,18 +405,17 @@ it('flags a manually seated next-to pair placed at different desks as a violatio
     $class = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $deskA = seatingDesk($plan, 0, 0);
+    $deskB = seatingDesk($plan, 0, 1);
 
     $studentA->seatingNextTo()->sync([$studentB->id]);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 0, 1);
-
-    $deskA = SeatingPlanDesk::query()->where('position_col', 0)->first();
-    $deskB = SeatingPlanDesk::query()->where('position_col', 1)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $studentA->id)
@@ -562,16 +434,16 @@ it('reports no violations when a next-to pair is seated at the same desk', funct
     $class = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan);
 
     $studentA->seatingNextTo()->sync([$studentB->id]);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $studentA->id)
@@ -587,16 +459,16 @@ it('flags a manually seated not-next-to pair placed at the same desk as a violat
     $class = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan);
 
     $studentA->seatingNotNextTo()->sync([$studentB->id]);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $studentA->id)
@@ -615,14 +487,14 @@ it('flags a student seated outside their allowed rows or columns as a violation'
         'seating_allowed_rows' => ['2'],
         'seating_allowed_columns' => ['2'],
     ]);
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan, 0, 0);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_row', 0)->where('position_col', 0)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $student->id)
@@ -653,71 +525,20 @@ it("keeps the seating chart's student pool isolated from another teacher's class
         ->and($students->first()->id)->toBe($student->id);
 });
 
-it('adds a blocked slot that occupies space but is never assignable', function () {
-    $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-    Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
-
-    $this->actingAs($teacher);
-
-    $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->set('newCellType', 'blocked')
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_row', 0)->where('position_col', 0)->first();
-
-    expect($desk)->not->toBeNull()
-        ->and($desk->is_blocked)->toBeTrue();
-
-    $component->call('selectStudent', Student::first()->id)->call('seatClicked', $desk->id, 0);
-
-    expect(SeatingPlanSeat::query()->where('seating_plan_desk_id', $desk->id)->exists())->toBeFalse();
-});
-
-it('excludes a blocked slot from randomization but still counts it toward column numbering', function () {
-    $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
-        'seating_allowed_columns' => ['3'],
-    ]);
-
-    $this->actingAs($teacher);
-
-    $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->set('newCellType', 'blocked')
-        ->set('newDeskCapacity', 2)
-        ->call('addDesk', 0, 0);
-
-    $component
-        ->set('newCellType', 'desk')
-        ->call('addDesk', 0, 1)
-        ->call('randomize');
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 1)->first();
-    $seat = SeatingPlanSeat::query()->where('student_id', $student->id)->first();
-
-    // The blocked slot at column 0 occupies absolute columns 1-2, so the
-    // single desk at grid column 1 starts at absolute column 3 (1-based).
-    expect($seat->seating_plan_desk_id)->toBe($desk->id)
-        ->and($seat->seat_index)->toBe(0);
-});
-
 it('locks a manually placed student and keeps them there when randomizing the rest', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $deskA = seatingDesk($plan, 0, 0);
+    seatingDesk($plan, 0, 1);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 0, 1);
-
-    $deskA = SeatingPlanDesk::query()->where('position_col', 0)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $studentA->id)
@@ -736,16 +557,15 @@ it('does not let a locked seat be clicked away or overwritten manually', functio
     $class = SchoolClass::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $deskA = seatingDesk($plan, 0, 0);
+    seatingDesk($plan, 0, 1);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 0, 1);
-
-    $deskA = SeatingPlanDesk::query()->where('position_col', 0)->first();
-    $deskB = SeatingPlanDesk::query()->where('position_col', 1)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $studentA->id)
@@ -762,14 +582,14 @@ it('blocks an empty seat so no student can be placed there, and unblocks it agai
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component->call('toggleSeatBlock', $desk->id, 0);
 
@@ -791,16 +611,16 @@ it('excludes a blocked empty seat from randomization without freeing it to anoth
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $students = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(2)->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan);
 
     $this->actingAs($teacher);
 
-    $component = Livewire::test(SeatingChart::class)
+    Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
-
-    $component->call('toggleSeatBlock', $desk->id, 0)->call('randomize');
+        ->call('toggleSeatBlock', $desk->id, 0)
+        ->call('randomize');
 
     $blocked = SeatingPlanSeat::query()->where('seating_plan_desk_id', $desk->id)->where('seat_index', 0)->first();
     $occupied = SeatingPlanSeat::query()->where('seating_plan_desk_id', $desk->id)->where('seat_index', 1)->first();
@@ -814,10 +634,13 @@ it('excludes a blocked empty seat from randomization without freeing it to anoth
 it('keeps every archived application around instead of deleting it, hidden from the default list', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
 
     $this->actingAs($teacher);
 
-    $component = Livewire::test(SeatingChart::class)->set('schoolClassId', $class->id);
+    $component = Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
     $originalApplicationId = $component->get('applicationId');
 
     $component->call('toggleArchiveApplication');
@@ -835,20 +658,61 @@ it('keeps every archived application around instead of deleting it, hidden from 
     expect($withoutArchived->pluck('id'))->not->toContain($originalApplicationId);
 });
 
-it('creates a new dated application of the same plan, starting from a copy of the current seating', function () {
+it('selects an application by clicking a date in the sidebar', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
-    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
+    $firstApplicationId = $component->get('applicationId');
 
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
+    $component->call('createApplication');
+    $secondApplicationId = $component->get('applicationId');
+
+    expect($secondApplicationId)->not->toBe($firstApplicationId);
+
+    $component->call('selectApplication', $firstApplicationId);
+
+    expect($component->get('applicationId'))->toBe($firstApplicationId);
+});
+
+it('does not select an application belonging to a different plan or class', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $otherClass = SchoolClass::factory()->for($teacher)->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $foreignApplication = SeatingPlanApplication::factory()->for($teacher)->for($plan, 'seatingPlan')->for($otherClass, 'schoolClass')->create();
+
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
+    $ownApplicationId = $component->get('applicationId');
+
+    $component->call('selectApplication', $foreignApplication->id);
+
+    expect($component->get('applicationId'))->toBe($ownApplicationId);
+});
+
+it('creates a new dated application of the same plan, starting from a copy of the current seating', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $desk = seatingDesk($plan);
+
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
+
     $originalApplicationId = $component->get('applicationId');
-    $originalPlanId = $component->get('planId');
 
     $component
         ->call('selectStudent', $student->id)
@@ -859,7 +723,7 @@ it('creates a new dated application of the same plan, starting from a copy of th
     $newApplicationId = $component->get('applicationId');
 
     expect($newApplicationId)->not->toBe($originalApplicationId)
-        ->and($component->get('planId'))->toBe($originalPlanId)
+        ->and($component->get('planId'))->toBe($plan->id)
         ->and(SeatingPlanApplication::query()->count())->toBe(2)
         ->and(SeatingPlanSeat::query()->where('seating_plan_application_id', $newApplicationId)->where('student_id', $student->id)->exists())->toBeTrue();
 
@@ -874,10 +738,12 @@ it('creates a new dated application of the same plan, starting from a copy of th
 it('sets an effective date on the current application', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
         ->set('schoolClassId', $class->id)
         ->call('updateEffectiveDate', '2026-09-01');
 
@@ -886,35 +752,20 @@ it('sets an effective date on the current application', function () {
     expect(SeatingPlanApplication::query()->find($applicationId)->effective_date->format('Y-m-d'))->toBe('2026-09-01');
 });
 
-it('sets the teacher desk position on the plan, shared by every application', function () {
-    $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-
-    $this->actingAs($teacher);
-
-    $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('setTeacherDeskPosition', 'right');
-
-    $planId = $component->get('planId');
-
-    expect(SeatingPlan::query()->find($planId)->teacher_desk_position)->toBe('right');
-});
-
 it('avoids reseating a student where they sat in a previous application of the same plan', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    $deskA = seatingDesk($plan, 0, 0);
+    seatingDesk($plan, 0, 1);
 
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 0, 1);
-
-    $deskA = SeatingPlanDesk::query()->where('position_col', 0)->first();
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
 
     $component
         ->call('selectStudent', $student->id)
@@ -943,23 +794,26 @@ it('does not let a different plan\'s seating history influence "avoid repeat sea
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
+    $planA = SeatingPlan::factory()->for($teacher)->create(['name' => 'Salle A']);
+    $deskA = seatingDesk($planA, 0, 0);
+
+    $planB = SeatingPlan::factory()->for($teacher)->create(['name' => 'Salle B']);
+    $sameCoordDesk = seatingDesk($planB, 0, 0);
+    seatingDesk($planB, 5, 5);
+
     $this->actingAs($teacher);
 
     $component = Livewire::test(SeatingChart::class)
-        ->set('schoolClassId', $class->id)
-        ->call('addDesk', 0, 0);
-
-    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
+        ->set('planId', $planA->id)
+        ->set('schoolClassId', $class->id);
 
     // Seat the student at desk 0-0 in the first plan, then switch to a
     // brand new, unrelated plan with a desk at that very same grid position
     // — and a second desk elsewhere, so the assigner actually has a choice.
     $component
         ->call('selectStudent', $student->id)
-        ->call('seatClicked', $desk->id, 0)
-        ->call('createPlan')
-        ->call('addDesk', 0, 0)
-        ->call('addDesk', 5, 5);
+        ->call('seatClicked', $deskA->id, 0)
+        ->set('planId', $planB->id);
 
     // Give the student a positive (weight 50) preference for row 0. This
     // turns "does the assigner avoid the row-0 desk" into a clean cost
@@ -973,7 +827,6 @@ it('does not let a different plan\'s seating history influence "avoid repeat sea
 
     $component->set('avoidRepeatSeats', true)->call('randomize');
 
-    $sameCoordDesk = SeatingPlanDesk::query()->where('seating_plan_id', $component->get('planId'))->where('position_row', 0)->where('position_col', 0)->first();
     $seat = SeatingPlanSeat::query()->where('student_id', $student->id)->latest('id')->first();
 
     // A different plan's desk at the same row/col is not the "same seat" —

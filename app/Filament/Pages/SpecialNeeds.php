@@ -19,7 +19,7 @@ class SpecialNeeds extends Page
 
     protected static ?string $title = 'Besoins particuliers';
 
-    protected static ?int $navigationSort = 25;
+    protected static ?int $navigationSort = 26;
 
     protected string $view = 'filament.pages.special-needs';
 

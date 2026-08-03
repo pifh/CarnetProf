@@ -20,7 +20,7 @@ class AnnualProgress extends Page
 
     protected static ?string $title = 'Progression annuelle';
 
-    protected static ?int $navigationSort = 24;
+    protected static ?int $navigationSort = 25;
 
     protected string $view = 'filament.pages.annual-progress';
 

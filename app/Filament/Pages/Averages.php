@@ -24,7 +24,7 @@ class Averages extends Page
 
     protected static ?string $title = 'Moyennes';
 
-    protected static ?int $navigationSort = 26;
+    protected static ?int $navigationSort = 27;
 
     protected string $view = 'filament.pages.averages';
 
