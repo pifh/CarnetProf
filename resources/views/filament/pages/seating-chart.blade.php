@@ -96,6 +96,7 @@
 
             @php($grid = $this->gridSize)
             @php($deskMap = $this->deskMap)
+            @php($violations = $this->violations)
 
             <div class="flex flex-col gap-3">
                 @for ($row = 0; $row < $grid['rows']; $row++)
@@ -125,20 +126,25 @@
                                         @for ($seatIndex = 0; $seatIndex < $desk->capacity; $seatIndex++)
                                             @php($seat = $desk->seats->firstWhere('seat_index', $seatIndex))
                                             @php($occupant = $seat?->student)
+                                            @php($occupantViolations = $occupant ? ($violations[$occupant->id] ?? []) : [])
                                             <div>
                                                 <button
                                                     type="button"
                                                     wire:click="seatClicked({{ $desk->id }}, {{ $seatIndex }})"
+                                                    @if ($occupantViolations !== [])
+                                                        title="{{ implode(' · ', $occupantViolations) }}"
+                                                    @endif
                                                     @class([
                                                         'flex h-16 w-20 flex-col items-center justify-center rounded border p-1 text-center text-xs leading-tight',
-                                                        'border-primary-500 bg-primary-50 dark:bg-primary-500/10' => $occupant && $selectedStudentId === $occupant->id,
-                                                        'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10' => ! ($occupant && $selectedStudentId === $occupant->id) && $occupant,
+                                                        'border-danger-500 bg-danger-50 ring-2 ring-danger-400 dark:bg-danger-500/10' => $occupantViolations !== [],
+                                                        'border-primary-500 bg-primary-50 dark:bg-primary-500/10' => $occupantViolations === [] && $occupant && $selectedStudentId === $occupant->id,
+                                                        'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10' => $occupantViolations === [] && $occupant && $selectedStudentId !== $occupant->id,
                                                         'border-dashed border-gray-300 text-gray-400 hover:border-gray-400 dark:border-white/10' => ! $occupant,
                                                     ])
                                                 >
                                                     @if ($occupant)
-                                                        <span class="font-medium text-gray-900 dark:text-white">{{ $occupant->first_name }}</span>
-                                                        <span class="text-gray-500 dark:text-gray-400">{{ $occupant->last_name }}</span>
+                                                        <span @class(['font-medium', 'text-danger-700 dark:text-danger-300' => $occupantViolations !== [], 'text-gray-900 dark:text-white' => $occupantViolations === []])>{{ $occupant->first_name }}</span>
+                                                        <span @class(['text-danger-600 dark:text-danger-400' => $occupantViolations !== [], 'text-gray-500 dark:text-gray-400' => $occupantViolations === []])>{{ $occupant->last_name }}</span>
                                                     @else
                                                         — vide —
                                                     @endif

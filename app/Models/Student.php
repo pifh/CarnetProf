@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
 #[Fillable([
     'school_class_id', 'first_name', 'last_name', 'sex', 'birth_date', 'address',
     'phone', 'email', 'is_delegate', 'special_needs', 'seating_notes',
-    'seating_row_preference', 'seating_allowed_columns',
+    'seating_allowed_rows', 'seating_allowed_columns',
     'pedagogical_notes', 'private_notes', 'is_archived', 'archived_at',
 ])]
 class Student extends Model
@@ -33,6 +33,7 @@ class Student extends Model
             'is_archived' => 'boolean',
             'archived_at' => 'datetime',
             'special_needs' => 'array',
+            'seating_allowed_rows' => 'array',
             'seating_allowed_columns' => 'array',
         ];
     }

@@ -321,11 +321,11 @@ it('seats a next-to pair at the same desk when randomizing', function () {
     expect($seatA->seating_plan_desk_id)->toBe($seatB->seating_plan_desk_id);
 });
 
-it('respects a row preference when randomizing', function () {
+it('respects 1-based allowed rows when randomizing', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
-        'seating_row_preference' => 'closest',
+        'seating_allowed_rows' => ['1'],
     ]);
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
 
@@ -341,6 +341,7 @@ it('respects a row preference when randomizing', function () {
     $seat = SeatingPlanSeat::query()->where('student_id', $student->id)->first();
     $desk = SeatingPlanDesk::query()->find($seat->seating_plan_desk_id);
 
+    // "rang 1" from the teacher's form is the 0-indexed grid row 0.
     expect($desk->position_row)->toBe(0);
 });
 
@@ -409,6 +410,113 @@ it('only pulls seating pair constraints between students within the randomized p
         ->call('randomize');
 
     expect(SeatingPlanSeat::query()->where('student_id', $student->id)->exists())->toBeTrue();
+});
+
+it('flags a manually seated next-to pair placed at different desks as a violation', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $studentA->seatingNextTo()->sync([$studentB->id]);
+
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->call('addDesk', 0, 0)
+        ->call('addDesk', 0, 1);
+
+    $deskA = SeatingPlanDesk::query()->where('position_col', 0)->first();
+    $deskB = SeatingPlanDesk::query()->where('position_col', 1)->first();
+
+    $component
+        ->call('selectStudent', $studentA->id)
+        ->call('seatClicked', $deskA->id, 0)
+        ->call('selectStudent', $studentB->id)
+        ->call('seatClicked', $deskB->id, 0);
+
+    $violations = $component->get('violations');
+
+    expect($violations)->toHaveKey($studentA->id)
+        ->and($violations)->toHaveKey($studentB->id);
+});
+
+it('reports no violations when a next-to pair is seated at the same desk', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $studentA->seatingNextTo()->sync([$studentB->id]);
+
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->call('addDesk', 0, 0);
+
+    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
+
+    $component
+        ->call('selectStudent', $studentA->id)
+        ->call('seatClicked', $desk->id, 0)
+        ->call('selectStudent', $studentB->id)
+        ->call('seatClicked', $desk->id, 1);
+
+    expect($component->get('violations'))->toBe([]);
+});
+
+it('flags a manually seated not-next-to pair placed at the same desk as a violation', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $studentA->seatingNotNextTo()->sync([$studentB->id]);
+
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->call('addDesk', 0, 0);
+
+    $desk = SeatingPlanDesk::query()->where('position_col', 0)->first();
+
+    $component
+        ->call('selectStudent', $studentA->id)
+        ->call('seatClicked', $desk->id, 0)
+        ->call('selectStudent', $studentB->id)
+        ->call('seatClicked', $desk->id, 1);
+
+    expect($component->get('violations'))->toHaveKey($studentA->id)
+        ->and($component->get('violations'))->toHaveKey($studentB->id);
+});
+
+it('flags a student seated outside their allowed rows or columns as a violation', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'seating_allowed_rows' => ['2'],
+        'seating_allowed_columns' => ['2'],
+    ]);
+
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->call('addDesk', 0, 0);
+
+    $desk = SeatingPlanDesk::query()->where('position_row', 0)->where('position_col', 0)->first();
+
+    $component
+        ->call('selectStudent', $student->id)
+        ->call('seatClicked', $desk->id, 0);
+
+    $violations = $component->get('violations');
+
+    expect($violations[$student->id])->toContain('Rang non autorisé')
+        ->and($violations[$student->id])->toContain('Colonne non autorisée');
 });
 
 it("keeps the seating chart's student pool isolated from another teacher's class", function () {

@@ -4,8 +4,8 @@ namespace App\Services;
 
 /**
  * Places a pool of students onto the desks of a seating plan, honoring per-student
- * constraints: a preferred row (closest/farthest), a set of allowed columns, and
- * pair constraints (sit together, never together, or as far apart as possible).
+ * constraints: a set of allowed rows, a set of allowed columns, and pair
+ * constraints (sit together, never together, or as far apart as possible).
  *
  * Pure — no Eloquent/DB access, only plain arrays keyed by student id and desk id —
  * so it can be unit-tested without a database. Mirrors GroupAssigner's architecture:
@@ -19,7 +19,7 @@ final class SeatingAssigner
 
     private const W_FAR_FROM = 200.0;
 
-    private const W_ROW_PREFERENCE = 20.0;
+    private const W_ALLOWED_ROW = 50.0;
 
     private const W_ALLOWED_COLUMN = 50.0;
 
@@ -36,7 +36,7 @@ final class SeatingAssigner
     /**
      * @param  int[]  $studentIds  pool to seat, no duplicates required
      * @param  array<int, array{row: int, col: int, capacity: int}>  $desks  deskId => desk info
-     * @param  array<int, string>  $rowPreferences  studentId => 'closest'|'farthest'
+     * @param  array<int, int[]>  $allowedRows  studentId => allowed row indexes, empty/absent means no restriction
      * @param  array<int, int[]>  $allowedColumns  studentId => allowed column indexes, empty/absent means no restriction
      * @param  array<int, array{0: int, 1: int}>  $nextToPairs
      * @param  array<int, array{0: int, 1: int}>  $notNextToPairs
@@ -45,7 +45,7 @@ final class SeatingAssigner
     public function assign(
         array $studentIds,
         array $desks,
-        array $rowPreferences = [],
+        array $allowedRows = [],
         array $allowedColumns = [],
         array $nextToPairs = [],
         array $notNextToPairs = [],
@@ -61,9 +61,9 @@ final class SeatingAssigner
 
         [$units, $conflicts] = $this->buildUnits($studentIds, $nextToPairs, $notNextToPairs, $farFromPairs, $maxDeskCapacity);
 
-        $assignment = $this->placeGreedy($units, $desks, $rowPreferences, $allowedColumns);
+        $assignment = $this->placeGreedy($units, $desks, $allowedRows, $allowedColumns);
 
-        [$assignment, $cost] = $this->refine($units, $assignment, $desks, $rowPreferences, $allowedColumns, $notNextToPairs, $farFromPairs);
+        [$assignment, $cost] = $this->refine($units, $assignment, $desks, $allowedRows, $allowedColumns, $notNextToPairs, $farFromPairs);
 
         $unassigned = [];
         foreach ($assignment as $unitIndex => $deskId) {
@@ -167,14 +167,13 @@ final class SeatingAssigner
      *
      * @param  array<int, array{members: int[], size: int}>  $units
      * @param  array<int, array{row: int, col: int, capacity: int}>  $desks
-     * @param  array<int, string>  $rowPreferences
+     * @param  array<int, int[]>  $allowedRows
      * @param  array<int, int[]>  $allowedColumns
      * @return array<int, ?int> unitIndex => deskId, or null if it couldn't fit anywhere
      */
-    private function placeGreedy(array $units, array $desks, array $rowPreferences, array $allowedColumns): array
+    private function placeGreedy(array $units, array $desks, array $allowedRows, array $allowedColumns): array
     {
         $remaining = array_map(fn (array $desk): int => $desk['capacity'], $desks);
-        $maxRow = max(array_column($desks, 'row'));
 
         $order = array_keys($units);
         usort($order, fn (int $a, int $b) => $units[$b]['size'] <=> $units[$a]['size']);
@@ -195,7 +194,7 @@ final class SeatingAssigner
             $bestScore = null;
 
             foreach ($eligible as $deskId) {
-                $score = $this->deskScore($desks[$deskId], $unit['members'], $rowPreferences, $allowedColumns, $maxRow);
+                $score = $this->deskScore($desks[$deskId], $unit['members'], $allowedRows, $allowedColumns);
 
                 if ($bestScore === null || $score < $bestScore) {
                     $bestScore = $score;
@@ -213,22 +212,21 @@ final class SeatingAssigner
     /**
      * @param  array{row: int, col: int, capacity: int}  $desk
      * @param  int[]  $members
-     * @param  array<int, string>  $rowPreferences
+     * @param  array<int, int[]>  $allowedRows
      * @param  array<int, int[]>  $allowedColumns
      */
-    private function deskScore(array $desk, array $members, array $rowPreferences, array $allowedColumns, int $maxRow): float
+    private function deskScore(array $desk, array $members, array $allowedRows, array $allowedColumns): float
     {
         $score = 0.0;
 
         foreach ($members as $studentId) {
-            $score += match ($rowPreferences[$studentId] ?? null) {
-                'closest' => $desk['row'],
-                'farthest' => $maxRow - $desk['row'],
-                default => 0,
-            };
+            $rows = $allowedRows[$studentId] ?? [];
+            if ($rows !== [] && ! in_array($desk['row'], $rows, true)) {
+                $score += self::W_ALLOWED_ROW;
+            }
 
-            $allowed = $allowedColumns[$studentId] ?? [];
-            if ($allowed !== [] && ! in_array($desk['col'], $allowed, true)) {
+            $columns = $allowedColumns[$studentId] ?? [];
+            if ($columns !== [] && ! in_array($desk['col'], $columns, true)) {
                 $score += self::W_ALLOWED_COLUMN;
             }
         }
@@ -249,7 +247,7 @@ final class SeatingAssigner
      * @param  array<int, array{members: int[], size: int}>  $units
      * @param  array<int, ?int>  $assignment
      * @param  array<int, array{row: int, col: int, capacity: int}>  $desks
-     * @param  array<int, string>  $rowPreferences
+     * @param  array<int, int[]>  $allowedRows
      * @param  array<int, int[]>  $allowedColumns
      * @param  array<int, array{0: int, 1: int}>  $notNextToPairs
      * @param  array<int, array{0: int, 1: int}>  $farFromPairs
@@ -259,12 +257,12 @@ final class SeatingAssigner
         array $units,
         array $assignment,
         array $desks,
-        array $rowPreferences,
+        array $allowedRows,
         array $allowedColumns,
         array $notNextToPairs,
         array $farFromPairs,
     ): array {
-        $cost = $this->cost($units, $assignment, $desks, $rowPreferences, $allowedColumns, $notNextToPairs, $farFromPairs);
+        $cost = $this->cost($units, $assignment, $desks, $allowedRows, $allowedColumns, $notNextToPairs, $farFromPairs);
 
         $unitIndexes = array_keys($units);
 
@@ -291,7 +289,7 @@ final class SeatingAssigner
                 $trial = $assignment;
                 $trial[$i] = $targetDesk;
 
-                $newCost = $this->cost($units, $trial, $desks, $rowPreferences, $allowedColumns, $notNextToPairs, $farFromPairs);
+                $newCost = $this->cost($units, $trial, $desks, $allowedRows, $allowedColumns, $notNextToPairs, $farFromPairs);
 
                 if ($newCost > $cost) {
                     $stale++;
@@ -323,7 +321,7 @@ final class SeatingAssigner
             $trial = $assignment;
             [$trial[$i], $trial[$j]] = [$trial[$j], $trial[$i]];
 
-            $newCost = $this->cost($units, $trial, $desks, $rowPreferences, $allowedColumns, $notNextToPairs, $farFromPairs);
+            $newCost = $this->cost($units, $trial, $desks, $allowedRows, $allowedColumns, $notNextToPairs, $farFromPairs);
 
             if ($newCost <= $cost) {
                 $assignment = $trial;
@@ -360,7 +358,7 @@ final class SeatingAssigner
      * @param  array<int, array{members: int[], size: int}>  $units
      * @param  array<int, ?int>  $assignment
      * @param  array<int, array{row: int, col: int, capacity: int}>  $desks
-     * @param  array<int, string>  $rowPreferences
+     * @param  array<int, int[]>  $allowedRows
      * @param  array<int, int[]>  $allowedColumns
      * @param  array<int, array{0: int, 1: int}>  $notNextToPairs
      * @param  array<int, array{0: int, 1: int}>  $farFromPairs
@@ -369,27 +367,25 @@ final class SeatingAssigner
         array $units,
         array $assignment,
         array $desks,
-        array $rowPreferences,
+        array $allowedRows,
         array $allowedColumns,
         array $notNextToPairs,
         array $farFromPairs,
     ): float {
         $studentDesk = $this->studentDeskMap($units, $assignment);
-        $maxRow = max(array_column($desks, 'row'));
 
         $cost = 0.0;
 
         foreach ($studentDesk as $studentId => $deskId) {
             $desk = $desks[$deskId];
 
-            $cost += self::W_ROW_PREFERENCE * match ($rowPreferences[$studentId] ?? null) {
-                'closest' => $desk['row'],
-                'farthest' => $maxRow - $desk['row'],
-                default => 0,
-            };
+            $rows = $allowedRows[$studentId] ?? [];
+            if ($rows !== [] && ! in_array($desk['row'], $rows, true)) {
+                $cost += self::W_ALLOWED_ROW;
+            }
 
-            $allowed = $allowedColumns[$studentId] ?? [];
-            if ($allowed !== [] && ! in_array($desk['col'], $allowed, true)) {
+            $columns = $allowedColumns[$studentId] ?? [];
+            if ($columns !== [] && ! in_array($desk['col'], $columns, true)) {
                 $cost += self::W_ALLOWED_COLUMN;
             }
         }

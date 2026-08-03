@@ -190,6 +190,85 @@ class SeatingChart extends Page
         return $this->getStudentsProperty()->reject(fn (Student $student) => in_array($student->id, $seatedIds, true))->values();
     }
 
+    /**
+     * Which placement rules the plan's current seating breaks, independent of
+     * how it was placed (manual clicks or "Répartir aléatoirement") — computed
+     * fresh from the persisted seats every render, so a manual move that
+     * creates a violation is flagged immediately.
+     *
+     * @return array<int, string[]> studentId => violation messages
+     */
+    public function getViolationsProperty(): array
+    {
+        $plan = $this->currentPlan;
+
+        if (! $plan) {
+            return [];
+        }
+
+        $deskByStudent = [];
+        foreach ($plan->desks as $desk) {
+            foreach ($desk->seats as $seat) {
+                if ($seat->student_id) {
+                    $deskByStudent[$seat->student_id] = $desk;
+                }
+            }
+        }
+
+        if ($deskByStudent === []) {
+            return [];
+        }
+
+        $studentIds = array_keys($deskByStudent);
+        $students = Student::query()->whereIn('id', $studentIds)->get()->keyBy('id');
+
+        [$nextToPairs, $notNextToPairs, $farFromPairs] = $this->gatherSeatingPairs($studentIds);
+
+        $violations = [];
+        $flag = function (int $studentId, string $message) use (&$violations): void {
+            $violations[$studentId][] = $message;
+        };
+
+        foreach ($nextToPairs as [$a, $b]) {
+            if (isset($deskByStudent[$a], $deskByStudent[$b]) && $deskByStudent[$a]->id !== $deskByStudent[$b]->id) {
+                $flag($a, 'Devrait être à côté de '.($students->get($b)?->full_name ?? '?'));
+                $flag($b, 'Devrait être à côté de '.($students->get($a)?->full_name ?? '?'));
+            }
+        }
+
+        foreach ($notNextToPairs as [$a, $b]) {
+            if (isset($deskByStudent[$a], $deskByStudent[$b]) && $deskByStudent[$a]->id === $deskByStudent[$b]->id) {
+                $flag($a, 'Ne devrait pas être à côté de '.($students->get($b)?->full_name ?? '?'));
+                $flag($b, 'Ne devrait pas être à côté de '.($students->get($a)?->full_name ?? '?'));
+            }
+        }
+
+        foreach ($farFromPairs as [$a, $b]) {
+            if (isset($deskByStudent[$a], $deskByStudent[$b]) && $deskByStudent[$a]->id === $deskByStudent[$b]->id) {
+                $flag($a, 'Devrait être séparé de '.($students->get($b)?->full_name ?? '?'));
+                $flag($b, 'Devrait être séparé de '.($students->get($a)?->full_name ?? '?'));
+            }
+        }
+
+        foreach ($deskByStudent as $studentId => $desk) {
+            $student = $students->get($studentId);
+
+            if (! $student) {
+                continue;
+            }
+
+            if (! empty($student->seating_allowed_rows) && ! in_array($desk->position_row + 1, array_map('intval', $student->seating_allowed_rows), true)) {
+                $flag($studentId, 'Rang non autorisé');
+            }
+
+            if (! empty($student->seating_allowed_columns) && ! in_array($desk->position_col + 1, array_map('intval', $student->seating_allowed_columns), true)) {
+                $flag($studentId, 'Colonne non autorisée');
+            }
+        }
+
+        return $violations;
+    }
+
     public function createPlan(): void
     {
         if (! $this->schoolClassId) {
@@ -458,16 +537,16 @@ class SeatingChart extends Page
 
         $studentIds = $students->pluck('id')->all();
 
-        $rowPreferences = $students->filter(fn (Student $student) => filled($student->seating_row_preference))
-            ->mapWithKeys(fn (Student $student) => [$student->id => $student->seating_row_preference])
+        // Teachers enter 1-based row/column numbers ("rang 1, 2, 3..."), the
+        // grid itself is 0-indexed internally.
+        $toGridIndexes = fn (array $values) => array_map(fn ($value) => max(0, ((int) $value) - 1), $values);
+
+        $allowedRows = $students->filter(fn (Student $student) => filled($student->seating_allowed_rows))
+            ->mapWithKeys(fn (Student $student) => [$student->id => $toGridIndexes($student->seating_allowed_rows)])
             ->all();
 
-        // Teachers enter 1-based column numbers ("colonne 1, 2, 3..."), the
-        // grid itself is 0-indexed internally.
         $allowedColumns = $students->filter(fn (Student $student) => filled($student->seating_allowed_columns))
-            ->mapWithKeys(fn (Student $student) => [
-                $student->id => array_map(fn ($column) => max(0, ((int) $column) - 1), $student->seating_allowed_columns),
-            ])
+            ->mapWithKeys(fn (Student $student) => [$student->id => $toGridIndexes($student->seating_allowed_columns)])
             ->all();
 
         [$nextToPairs, $notNextToPairs, $farFromPairs] = $this->gatherSeatingPairs($studentIds);
@@ -475,7 +554,7 @@ class SeatingChart extends Page
         $result = app(SeatingAssigner::class)->assign(
             studentIds: $studentIds,
             desks: $deskData,
-            rowPreferences: $rowPreferences,
+            allowedRows: $allowedRows,
             allowedColumns: $allowedColumns,
             nextToPairs: $nextToPairs,
             notNextToPairs: $notNextToPairs,

@@ -83,22 +83,22 @@ it('maximizes the distance between a far-from pair', function () {
     expect($distance)->toBe(2);
 });
 
-it('seats a student with a closest row preference in the front row when possible', function () {
+it('honors allowed rows for a student when possible', function () {
     mt_srand(4);
     $ids = range(1, 8);
     $desks = grid(4, 2);
 
-    $result = (new SeatingAssigner)->assign($ids, $desks, rowPreferences: [1 => 'closest']);
+    $result = (new SeatingAssigner)->assign($ids, $desks, allowedRows: [1 => [0]]);
 
     expect($desks[$result->placements[1]]['row'])->toBe(0);
 });
 
-it('seats a student with a farthest row preference in the back row when possible', function () {
+it('honors a restrictive allowed-rows list for a student when possible', function () {
     mt_srand(5);
     $ids = range(1, 8);
     $desks = grid(4, 2);
 
-    $result = (new SeatingAssigner)->assign($ids, $desks, rowPreferences: [1 => 'farthest']);
+    $result = (new SeatingAssigner)->assign($ids, $desks, allowedRows: [1 => [3]]);
 
     expect($desks[$result->placements[1]]['row'])->toBe(3);
 });

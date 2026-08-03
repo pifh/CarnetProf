@@ -129,13 +129,10 @@ class StudentForm
 
                         Tab::make('Plan de classe')
                             ->schema([
-                                Radio::make('seating_row_preference')
-                                    ->label('Rang')
-                                    ->options([
-                                        'closest' => 'Le plus près possible',
-                                        'farthest' => 'Le plus loin possible',
-                                    ])
-                                    ->inline(),
+                                TagsInput::make('seating_allowed_rows')
+                                    ->label('Rangs possibles')
+                                    ->placeholder('Ajouter un numéro de rang')
+                                    ->helperText('Numéros de rangs autorisés (1, 2, 3...). Laisser vide si aucune contrainte.'),
 
                                 TagsInput::make('seating_allowed_columns')
                                     ->label('Colonnes possibles')

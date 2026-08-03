@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
-it('saves the row preference and allowed columns on a student', function () {
+it('saves the allowed rows and allowed columns on a student', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
@@ -16,7 +16,7 @@ it('saves the row preference and allowed columns on a student', function () {
 
     Livewire::test(EditStudent::class, ['record' => $student->getKey()])
         ->fillForm([
-            'seating_row_preference' => 'closest',
+            'seating_allowed_rows' => ['1'],
             'seating_allowed_columns' => ['1', '2'],
         ])
         ->call('save')
@@ -24,7 +24,7 @@ it('saves the row preference and allowed columns on a student', function () {
 
     $student->refresh();
 
-    expect($student->seating_row_preference)->toBe('closest')
+    expect($student->seating_allowed_rows)->toBe(['1'])
         ->and($student->seating_allowed_columns)->toBe(['1', '2']);
 });
 
