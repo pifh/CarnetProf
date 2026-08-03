@@ -2,27 +2,34 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTeacher;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['seating_plan_id', 'position_row', 'position_col', 'capacity', 'is_blocked'])]
-class SeatingPlanDesk extends Model
+#[Fillable(['seating_plan_id', 'school_class_id', 'effective_date', 'is_archived'])]
+class SeatingPlanApplication extends Model
 {
-    use HasFactory;
+    use BelongsToTeacher, HasFactory;
 
     protected function casts(): array
     {
         return [
-            'is_blocked' => 'boolean',
+            'effective_date' => 'date',
+            'is_archived' => 'boolean',
         ];
     }
 
     public function seatingPlan(): BelongsTo
     {
         return $this->belongsTo(SeatingPlan::class);
+    }
+
+    public function schoolClass(): BelongsTo
+    {
+        return $this->belongsTo(SchoolClass::class);
     }
 
     public function seats(): HasMany

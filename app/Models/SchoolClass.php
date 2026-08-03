@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
@@ -45,9 +44,9 @@ class SchoolClass extends Model
         return $this->hasMany(Evaluation::class);
     }
 
-    public function seatingPlan(): HasOne
+    public function seatingPlanApplications(): HasMany
     {
-        return $this->hasOne(SeatingPlan::class);
+        return $this->hasMany(SeatingPlanApplication::class);
     }
 
     public function progressionSequences(): HasMany

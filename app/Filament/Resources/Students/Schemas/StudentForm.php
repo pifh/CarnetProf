@@ -129,6 +129,14 @@ class StudentForm
 
                         Tab::make('Plan de classe')
                             ->schema([
+                                TextInput::make('height_cm')
+                                    ->label('Taille (cm)')
+                                    ->numeric()
+                                    ->minValue(50)
+                                    ->maxValue(250)
+                                    ->helperText('Utilisée par le générateur pour éviter de placer un grand élève devant un plus petit.')
+                                    ->columnSpanFull(),
+
                                 TagsInput::make('seating_allowed_rows')
                                     ->label('Rangs possibles')
                                     ->placeholder('Ajouter un numéro de rang')

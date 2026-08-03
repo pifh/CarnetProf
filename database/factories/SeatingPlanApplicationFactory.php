@@ -2,14 +2,16 @@
 
 namespace Database\Factories;
 
+use App\Models\SchoolClass;
 use App\Models\SeatingPlan;
+use App\Models\SeatingPlanApplication;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<SeatingPlan>
+ * @extends Factory<SeatingPlanApplication>
  */
-class SeatingPlanFactory extends Factory
+class SeatingPlanApplicationFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -20,7 +22,8 @@ class SeatingPlanFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'name' => 'Plan de classe',
+            'seating_plan_id' => SeatingPlan::factory(),
+            'school_class_id' => SchoolClass::factory(),
         ];
     }
 }

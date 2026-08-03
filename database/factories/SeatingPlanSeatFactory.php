@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Models\SeatingPlan;
+use App\Models\SeatingPlanApplication;
 use App\Models\SeatingPlanDesk;
 use App\Models\SeatingPlanSeat;
 use App\Models\Student;
@@ -21,7 +21,7 @@ class SeatingPlanSeatFactory extends Factory
     public function definition(): array
     {
         return [
-            'seating_plan_id' => SeatingPlan::factory(),
+            'seating_plan_application_id' => SeatingPlanApplication::factory(),
             'seating_plan_desk_id' => SeatingPlanDesk::factory(),
             'seat_index' => 0,
             'student_id' => Student::factory(),

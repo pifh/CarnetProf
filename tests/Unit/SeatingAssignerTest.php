@@ -132,3 +132,182 @@ it('returns nothing for an empty student pool or an empty desk list', function (
     expect((new SeatingAssigner)->assign([], $desks)->placements)->toBe([])
         ->and((new SeatingAssigner)->assign([1, 2], [])->placements)->toBe([]);
 });
+
+it('computes absolute per-seat columns from a desk baseColumn, not the desk index', function () {
+    $ids = [1, 2];
+    $desks = [10 => ['row' => 0, 'col' => 0, 'capacity' => 2, 'baseColumn' => 4]];
+
+    $result = (new SeatingAssigner)->assign($ids, $desks, nextToPairs: [[1, 2]]);
+
+    expect($result->seatOffsets[1])->toBe(0)
+        ->and($result->seatOffsets[2])->toBe(1);
+});
+
+it('honors allowed columns using the desk baseColumn plus the seat offset, not the desk index', function () {
+    mt_srand(7);
+    $ids = [1, 2, 3, 4];
+    $desks = [
+        10 => ['row' => 0, 'col' => 1, 'capacity' => 2, 'baseColumn' => 4],
+        11 => ['row' => 0, 'col' => 0, 'capacity' => 2, 'baseColumn' => 0],
+    ];
+
+    $result = (new SeatingAssigner)->assign(
+        $ids, $desks,
+        allowedColumns: [1 => [4]],
+        nextToPairs: [[1, 2]],
+    );
+
+    expect($result->placements[1])->toBe(10);
+});
+
+it('keeps a locked student at their pinned desk when randomizing the rest', function () {
+    mt_srand(8);
+    $ids = range(1, 4);
+    $desks = grid(2, 2);
+
+    $result = (new SeatingAssigner)->assign($ids, $desks, lockedPlacements: [1 => 3]);
+
+    expect($result->placements[1])->toBe(3);
+});
+
+it('reports a conflict when a next-to pair is locked to two different desks', function () {
+    $ids = [1, 2, 3, 4];
+    $desks = grid(2, 2);
+
+    $result = (new SeatingAssigner)->assign($ids, $desks, nextToPairs: [[1, 2]], lockedPlacements: [1 => 1, 2 => 2]);
+
+    expect($result->unresolvedConflicts)->toContain(['type' => 'locked_conflict', 'members' => [1, 2]]);
+});
+
+it('avoids seating two students of the same sex at the same desk when possible', function () {
+    mt_srand(9);
+    $ids = [1, 2, 3, 4];
+    $desks = grid(1, 2); // 2 desks * 2 seats = exactly 4 seats, forces one pair per desk
+    $sexes = [1 => 'f', 2 => 'f', 3 => 'm', 4 => 'm'];
+
+    $result = (new SeatingAssigner)->assign($ids, $desks, sexes: $sexes, avoidSameSexNeighbors: true);
+
+    $byDesk = [];
+    foreach ($result->placements as $studentId => $deskId) {
+        $byDesk[$deskId][] = $sexes[$studentId];
+    }
+
+    foreach ($byDesk as $deskSexes) {
+        expect($deskSexes)->not->toBe(['f', 'f'])->and($deskSexes)->not->toBe(['m', 'm']);
+    }
+});
+
+it('avoids reseating a student at a desk position they occupied before', function () {
+    mt_srand(10);
+    $ids = [1, 2];
+    $desks = [10 => ['row' => 0, 'col' => 0, 'capacity' => 1], 11 => ['row' => 0, 'col' => 1, 'capacity' => 1]];
+
+    $result = (new SeatingAssigner)->assign(
+        $ids, $desks,
+        previousSeatPositions: [1 => ['0-0']],
+        avoidRepeatSeats: true,
+    );
+
+    expect($result->placements[1])->toBe(11);
+});
+
+it('avoids re-pairing students who were neighbors in a previous plan', function () {
+    mt_srand(11);
+    $ids = [1, 2, 3, 4];
+    $desks = grid(1, 2); // 2 desks * 2 seats, forces exactly 2 pairs
+
+    $result = (new SeatingAssigner)->assign(
+        $ids, $desks,
+        previousNeighborCounts: [SeatingAssigner::pairKey(1, 2) => 3],
+        avoidRepeatNeighbors: true,
+    );
+
+    expect($result->placements[1])->not->toBe($result->placements[2]);
+});
+
+it('avoids seating a much taller student directly in front of and column-adjacent to a much shorter one', function () {
+    mt_srand(12);
+    $ids = [1, 2];
+    $desks = [10 => ['row' => 0, 'col' => 0, 'capacity' => 1], 11 => ['row' => 1, 'col' => 0, 'capacity' => 1]];
+
+    $result = (new SeatingAssigner)->assign(
+        $ids, $desks,
+        heights: [1 => 190, 2 => 140],
+        heightOrdering: true,
+        heightMarginCm: 10,
+    );
+
+    $deskA = $desks[$result->placements[1]];
+    $deskB = $desks[$result->placements[2]];
+
+    expect($deskA['row'])->toBeGreaterThanOrEqual($deskB['row']);
+});
+
+it('gives non-colliding seat offsets when a locked student and a freely-placed student share a desk', function () {
+    mt_srand(13);
+    $ids = [1, 2, 3];
+    // one shared 2-seat desk, one spare desk elsewhere
+    $desks = [
+        10 => ['row' => 0, 'col' => 0, 'capacity' => 2],
+        11 => ['row' => 0, 'col' => 1, 'capacity' => 2],
+    ];
+
+    // student 1 is locked at desk 10; students 2 and 3 are free to move, and
+    // desk 10 still has one seat open for one of them to join student 1.
+    $result = (new SeatingAssigner)->assign($ids, $desks, lockedPlacements: [1 => 10]);
+
+    $offsetsAtDesk10 = [];
+    foreach ($result->placements as $studentId => $deskId) {
+        if ($deskId === 10) {
+            $offsetsAtDesk10[] = $result->seatOffsets[$studentId];
+        }
+    }
+
+    expect($offsetsAtDesk10)->toEqualCanonicalizing(array_slice([0, 1], 0, count($offsetsAtDesk10)))
+        ->and($offsetsAtDesk10)->toHaveCount(count(array_unique($offsetsAtDesk10)));
+});
+
+it('never assigns another student the exact offset already held by a locked seat', function () {
+    for ($seed = 0; $seed < 50; $seed++) {
+        mt_srand($seed);
+
+        $ids = [1, 2, 3];
+        $desks = [10 => ['row' => 0, 'col' => 0, 'capacity' => 2], 11 => ['row' => 0, 'col' => 1, 'capacity' => 2]];
+
+        // Student 1 is locked at desk 10, offset 0 — a value the assigner's
+        // own model would be free to reassign to someone else if it weren't
+        // told this exact offset is already occupied in the database.
+        $result = (new SeatingAssigner)->assign(
+            $ids, $desks,
+            lockedPlacements: [1 => 10],
+            lockedSeatOffsets: [1 => 0],
+        );
+
+        expect($result->seatOffsets[1])->toBe(0);
+
+        foreach ($result->placements as $studentId => $deskId) {
+            if ($studentId === 1) {
+                continue;
+            }
+
+            if ($deskId === 10) {
+                expect($result->seatOffsets[$studentId])->not->toBe(0);
+            }
+        }
+    }
+});
+
+it('does not penalize a taller student in front when they are not column-adjacent to the shorter one', function () {
+    $ids = [1, 2];
+    $desks = [10 => ['row' => 0, 'col' => 0, 'capacity' => 1], 11 => ['row' => 1, 'col' => 5, 'capacity' => 1]];
+
+    $result = (new SeatingAssigner)->assign(
+        $ids, $desks,
+        lockedPlacements: [1 => 10, 2 => 11],
+        heights: [1 => 190, 2 => 140],
+        heightOrdering: true,
+        heightMarginCm: 10,
+    );
+
+    expect($result->cost)->toBe(0.0);
+});
