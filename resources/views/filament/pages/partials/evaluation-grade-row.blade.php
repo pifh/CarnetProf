@@ -1,5 +1,5 @@
 <tr class="border-t border-gray-100 dark:border-white/5" wire:key="student-{{ $student->id }}">
-    <td class="p-2">{{ $student->first_name }} {{ $student->last_name }}</td>
+    <td class="p-2"><x-student-name :student="$student" /></td>
     <td class="p-2">
         <div class="flex items-center gap-1">
             <x-filament::input.wrapper class="max-w-[6rem]">

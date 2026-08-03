@@ -50,7 +50,7 @@
                         @foreach ($students as $student)
                             <tr class="border-t border-gray-100 dark:border-white/5">
                                 <td class="p-2">
-                                    {{ $student->first_name }} {{ $student->last_name }}
+                                    <x-student-name :student="$student" />
                                     @if ($student->is_archived)
                                         <x-filament::badge color="gray" size="sm">Archivé</x-filament::badge>
                                     @endif

@@ -45,7 +45,7 @@
                 @foreach ($students as $student)
                     <div class="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-3 dark:border-white/10" wire:key="student-{{ $student->id }}">
                         <div>
-                            <div class="font-medium text-gray-900 dark:text-white">{{ $student->first_name }} {{ $student->last_name }}</div>
+                            <x-student-name :student="$student" class="font-medium text-gray-900 dark:text-white" />
                             <div class="text-sm text-gray-500 dark:text-gray-400">
                                 {{ $student->schoolClass?->name }}
                                 @if ($student->archived_at)

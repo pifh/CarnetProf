@@ -298,6 +298,119 @@ it("prevents a teacher from updating or deleting another teacher's seating plan"
         ->and($teacher->can('delete', $plan))->toBeFalse();
 });
 
+it('seats a next-to pair at the same desk when randomizing', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $others = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(2)->create();
+
+    $studentA->seatingNextTo()->sync([$studentB->id]);
+
+    $this->actingAs($teacher);
+
+    Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->call('addDesk', 0, 0)
+        ->call('addDesk', 0, 1)
+        ->call('randomize');
+
+    $seatA = SeatingPlanSeat::query()->where('student_id', $studentA->id)->first();
+    $seatB = SeatingPlanSeat::query()->where('student_id', $studentB->id)->first();
+
+    expect($seatA->seating_plan_desk_id)->toBe($seatB->seating_plan_desk_id);
+});
+
+it('respects a row preference when randomizing', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'seating_row_preference' => 'closest',
+    ]);
+    Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->call('addDesk', 0, 0)
+        ->call('addDesk', 1, 0)
+        ->call('addDesk', 2, 0)
+        ->call('randomize');
+
+    $seat = SeatingPlanSeat::query()->where('student_id', $student->id)->first();
+    $desk = SeatingPlanDesk::query()->find($seat->seating_plan_desk_id);
+
+    expect($desk->position_row)->toBe(0);
+});
+
+it('respects 1-based allowed columns when randomizing', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'seating_allowed_columns' => ['2'],
+    ]);
+    Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->call('addDesk', 0, 0)
+        ->call('addDesk', 0, 1)
+        ->call('addDesk', 0, 2)
+        ->call('randomize');
+
+    $seat = SeatingPlanSeat::query()->where('student_id', $student->id)->first();
+    $desk = SeatingPlanDesk::query()->find($seat->seating_plan_desk_id);
+
+    // "colonne 2" from the teacher's form is the 0-indexed grid column 1.
+    expect($desk->position_col)->toBe(1);
+});
+
+it('keeps a not-next-to pair off the same desk when randomizing', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $studentA->seatingNotNextTo()->sync([$studentB->id]);
+
+    $this->actingAs($teacher);
+
+    Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->call('addDesk', 0, 0)
+        ->call('addDesk', 0, 1)
+        ->call('randomize');
+
+    $seatA = SeatingPlanSeat::query()->where('student_id', $studentA->id)->first();
+    $seatB = SeatingPlanSeat::query()->where('student_id', $studentB->id)->first();
+
+    expect($seatA->seating_plan_desk_id)->not->toBe($seatB->seating_plan_desk_id);
+});
+
+it('only pulls seating pair constraints between students within the randomized pool', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $otherClass = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $outsider = Student::factory()->for($teacher)->for($otherClass, 'schoolClass')->create();
+
+    // A stray pair referencing a student outside this class's pool must not
+    // break constraint gathering (whereIn on both sides excludes it).
+    $student->seatingNextTo()->sync([$outsider->id]);
+
+    $this->actingAs($teacher);
+
+    Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->call('addDesk', 0, 0)
+        ->call('randomize');
+
+    expect(SeatingPlanSeat::query()->where('student_id', $student->id)->exists())->toBeTrue();
+});
+
 it("keeps the seating chart's student pool isolated from another teacher's class", function () {
     $teacher = User::factory()->create();
     $otherTeacher = User::factory()->create();

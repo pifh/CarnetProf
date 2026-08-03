@@ -3,11 +3,13 @@
 namespace App\Filament\Resources\Students\Schemas;
 
 use App\Models\SchoolClass;
+use App\Models\Student;
 use App\Models\StudentSubgroup;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -125,16 +127,69 @@ class StudentForm
                                     }),
                             ]),
 
-                        Tab::make('Pédagogie (privé)')
+                        Tab::make('Plan de classe')
                             ->schema([
-                                Textarea::make('special_needs')
-                                    ->label('Besoins particuliers')
-                                    ->rows(3)
+                                Radio::make('seating_row_preference')
+                                    ->label('Rang')
+                                    ->options([
+                                        'closest' => 'Le plus près possible',
+                                        'farthest' => 'Le plus loin possible',
+                                    ])
+                                    ->inline(),
+
+                                TagsInput::make('seating_allowed_columns')
+                                    ->label('Colonnes possibles')
+                                    ->placeholder('Ajouter un numéro de colonne')
+                                    ->helperText('Numéros de colonnes autorisées (1, 2, 3...). Laisser vide si aucune contrainte.'),
+
+                                Select::make('seatingNextTo')
+                                    ->label('À côté de')
+                                    ->relationship(name: 'seatingNextTo', titleAttribute: 'first_name')
+                                    ->getOptionLabelFromRecordUsing(fn (Student $student) => $student->full_name)
+                                    ->multiple()
+                                    ->searchable()
+                                    ->preload()
+                                    ->helperText('Le générateur de plan de classe placera cet élève au même bureau.')
+                                    ->options(fn (callable $get, ?Student $record) => self::classmateOptions($get('school_class_id'), $record))
+                                    ->columnSpanFull(),
+
+                                Select::make('seatingNotNextTo')
+                                    ->label('Pas à côté de')
+                                    ->relationship(name: 'seatingNotNextTo', titleAttribute: 'first_name')
+                                    ->getOptionLabelFromRecordUsing(fn (Student $student) => $student->full_name)
+                                    ->multiple()
+                                    ->searchable()
+                                    ->preload()
+                                    ->helperText('Le générateur évitera de placer cet élève au même bureau.')
+                                    ->options(fn (callable $get, ?Student $record) => self::classmateOptions($get('school_class_id'), $record))
+                                    ->columnSpanFull(),
+
+                                Select::make('seatingFarFrom')
+                                    ->label('À séparer le plus possible de')
+                                    ->relationship(name: 'seatingFarFrom', titleAttribute: 'first_name')
+                                    ->getOptionLabelFromRecordUsing(fn (Student $student) => $student->full_name)
+                                    ->multiple()
+                                    ->searchable()
+                                    ->preload()
+                                    ->helperText('Le générateur placera cet élève aussi loin que possible.')
+                                    ->options(fn (callable $get, ?Student $record) => self::classmateOptions($get('school_class_id'), $record))
                                     ->columnSpanFull(),
 
                                 Textarea::make('seating_notes')
-                                    ->label('Consignes pour le plan de classe')
+                                    ->label('Notes libres')
+                                    ->helperText('Non utilisées par le générateur, à titre indicatif.')
                                     ->rows(3)
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2),
+
+                        Tab::make('Pédagogie (privé)')
+                            ->schema([
+                                TagsInput::make('special_needs')
+                                    ->label('Besoins particuliers')
+                                    ->placeholder('Ajouter un mot clef')
+                                    ->suggestions(fn () => Student::allSpecialNeedsTags())
+                                    ->splitKeys(['Tab', ','])
                                     ->columnSpanFull(),
 
                                 Textarea::make('pedagogical_notes')
@@ -150,5 +205,25 @@ class StudentForm
                             ]),
                     ]),
             ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function classmateOptions(mixed $schoolClassId, ?Student $record): array
+    {
+        if (! $schoolClassId) {
+            return [];
+        }
+
+        return Student::query()
+            ->where('school_class_id', $schoolClassId)
+            ->where('is_archived', false)
+            ->when($record, fn ($query) => $query->where('id', '!=', $record->id))
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->mapWithKeys(fn (Student $student) => [$student->id => $student->full_name])
+            ->all();
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Students\Tables;
 
 use App\Models\SchoolClass;
+use App\Models\Student;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
@@ -27,11 +28,13 @@ class StudentsTable
                 TextColumn::make('last_name')
                     ->label('Nom')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->action(fn (Student $record, $livewire) => $livewire->dispatch('open-student-preview', studentId: $record->id)),
                 TextColumn::make('first_name')
                     ->label('Prénom')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->action(fn (Student $record, $livewire) => $livewire->dispatch('open-student-preview', studentId: $record->id)),
                 TextColumn::make('schoolClass.name')
                     ->label('Classe')
                     ->badge()

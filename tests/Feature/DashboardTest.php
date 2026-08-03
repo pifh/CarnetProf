@@ -7,6 +7,7 @@ use App\Filament\Widgets\TodaysBirthdays;
 use App\Models\Reminder;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\StudentPhoto;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -69,6 +70,47 @@ it('only shows students whose birthday is today, active and belonging to the tea
     Livewire::test(TodaysBirthdays::class)
         ->assertCanSeeTableRecords([$todayBirthday])
         ->assertCanNotSeeTableRecords([$otherDay, $archivedTodayBirthday]);
+});
+
+it('rounds the displayed age to a whole number of years', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+
+    Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'birth_date' => Carbon::today()->subYears(9),
+    ]);
+
+    $this->actingAs($teacher);
+
+    $html = Livewire::test(TodaysBirthdays::class)->html();
+
+    expect($html)->toContain('9 ans')
+        ->not->toMatch('/\d+[.,]\d+\s*ans/');
+});
+
+it("shows the student's current photo when available, and an initials avatar otherwise", function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+
+    $withPhoto = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'first_name' => 'Alice',
+        'last_name' => 'Aaronson',
+        'birth_date' => Carbon::today()->subYears(10),
+    ]);
+    $photo = StudentPhoto::factory()->for($teacher)->for($withPhoto)->create(['path' => 'students/alice.jpg']);
+
+    $withoutPhoto = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'first_name' => 'Bob',
+        'last_name' => 'Bertrand',
+        'birth_date' => Carbon::today()->subYears(10),
+    ]);
+
+    $this->actingAs($teacher);
+
+    $html = Livewire::test(TodaysBirthdays::class)->html();
+
+    expect($html)->toContain($photo->path)
+        ->and($html)->toContain('data:image/svg+xml;base64,');
 });
 
 it('lists only the teacher\'s own active classes with their active student count', function () {

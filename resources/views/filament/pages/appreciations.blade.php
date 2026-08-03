@@ -61,7 +61,7 @@
                     @php($appreciation = $student->appreciation)
                     <div class="rounded-lg border border-gray-200 p-4 dark:border-white/10" wire:key="student-{{ $student->id }}">
                         <div class="flex flex-wrap items-center justify-between gap-2">
-                            <span class="font-medium text-gray-900 dark:text-white">{{ $student->first_name }} {{ $student->last_name }}</span>
+                            <x-student-name :student="$student" class="font-medium text-gray-900 dark:text-white" />
 
                             <div class="flex flex-wrap items-center gap-2">
                                 @if ($this->templates->isNotEmpty())

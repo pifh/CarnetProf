@@ -102,7 +102,9 @@
                 @if ($lastPickedStudentId)
                     @php($picked = $students->firstWhere('id', $lastPickedStudentId))
                     <div class="text-3xl font-bold text-gray-900 dark:text-white">
-                        {{ $picked?->first_name }} {{ $picked?->last_name }}
+                        @if ($picked)
+                            <x-student-name :student="$picked" />
+                        @endif
                     </div>
                 @else
                     <div class="text-lg text-gray-500 dark:text-gray-400">
@@ -149,7 +151,7 @@
                 <div class="space-y-1">
                     @foreach ($this->sessionHistory as $row)
                         <div class="flex items-center justify-between text-sm">
-                            <span class="text-gray-700 dark:text-gray-300">{{ $row['student']->first_name }} {{ $row['student']->last_name }}</span>
+                            <x-student-name :student="$row['student']" class="text-gray-700 dark:text-gray-300" />
                             <span class="font-medium text-gray-900 dark:text-white">{{ $row['count'] }}</span>
                         </div>
                     @endforeach

@@ -41,7 +41,7 @@
                         @include('filament.pages.partials.student-photo', ['student' => $student])
                     </div>
                     <div class="p-2 text-center">
-                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $student->first_name }} {{ $student->last_name }}</div>
+                        <x-student-name :student="$student" class="text-sm font-medium text-gray-900 dark:text-white" />
                         <x-filament::button size="xs" color="gray" class="mt-1" wire:click="toggleManaging({{ $student->id }})">
                             {{ $managingStudentId === $student->id ? 'Fermer' : 'Gérer' }}
                         </x-filament::button>

@@ -138,7 +138,7 @@
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach ($eligibleStudents as $student)
                         <div class="flex items-center justify-between gap-2">
-                            <span class="text-sm text-gray-700 dark:text-gray-300">{{ $student->first_name }} {{ $student->last_name }}</span>
+                            <x-student-name :student="$student" class="text-sm text-gray-700 dark:text-gray-300" />
                             <x-filament::input.wrapper class="max-w-[9rem]">
                                 <x-filament::input.select wire:model.live="lockedPlacements.{{ $student->id }}">
                                     <option value="">Non assigné</option>
@@ -182,7 +182,7 @@
                                 @php($studentA = $students->firstWhere('id', $pair[0]))
                                 @php($studentB = $students->firstWhere('id', $pair[1]))
                                 <x-filament::badge color="success">
-                                    {{ $studentA?->first_name }} {{ $studentA?->last_name }} ↔ {{ $studentB?->first_name }} {{ $studentB?->last_name }}
+                                    @if ($studentA)<x-student-name :student="$studentA" />@endif ↔ @if ($studentB)<x-student-name :student="$studentB" />@endif
                                     <button type="button" wire:click="removeKeepTogetherPair({{ $index }})" class="ml-1">×</button>
                                 </x-filament::badge>
                             @endforeach
@@ -219,7 +219,7 @@
                                 @php($studentA = $students->firstWhere('id', $pair[0]))
                                 @php($studentB = $students->firstWhere('id', $pair[1]))
                                 <x-filament::badge color="danger">
-                                    {{ $studentA?->first_name }} {{ $studentA?->last_name }} ↔ {{ $studentB?->first_name }} {{ $studentB?->last_name }}
+                                    @if ($studentA)<x-student-name :student="$studentA" />@endif ↔ @if ($studentB)<x-student-name :student="$studentB" />@endif
                                     <button type="button" wire:click="removeKeepApartPair({{ $index }})" class="ml-1">×</button>
                                 </x-filament::badge>
                             @endforeach
@@ -303,7 +303,7 @@
                             </div>
                             <ul class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
                                 @foreach ($group['students'] as $student)
-                                    <li>{{ $student->first_name }} {{ $student->last_name }}</li>
+                                    <li><x-student-name :student="$student" /></li>
                                 @endforeach
                             </ul>
 
@@ -402,7 +402,7 @@
                                                             </div>
                                                             <ul class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
                                                                 @foreach ($group['students'] as $student)
-                                                                    <li>{{ $student->first_name }} {{ $student->last_name }}</li>
+                                                                    <li><x-student-name :student="$student" /></li>
                                                                 @endforeach
                                                             </ul>
                                                         </div>

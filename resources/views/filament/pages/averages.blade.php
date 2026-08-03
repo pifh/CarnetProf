@@ -82,7 +82,7 @@
                                 @if ($showRanking)
                                     <td class="p-2">{{ $row['average'] !== null ? $index + 1 : '—' }}</td>
                                 @endif
-                                <td class="p-2">{{ $row['student']->first_name }} {{ $row['student']->last_name }}</td>
+                                <td class="p-2"><x-student-name :student="$row['student']" /></td>
                                 <td class="p-2">
                                     {{ $row['average'] !== null ? number_format($row['average'], 2).'/20' : 'Aucune note' }}
                                 </td>

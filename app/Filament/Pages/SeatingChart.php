@@ -7,12 +7,14 @@ use App\Models\SeatingPlan;
 use App\Models\SeatingPlanDesk;
 use App\Models\SeatingPlanSeat;
 use App\Models\Student;
+use App\Services\SeatingAssigner;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class SeatingChart extends Page
 {
@@ -442,28 +444,108 @@ class SeatingChart extends Page
         SeatingPlanSeat::query()->where('seating_plan_id', $plan->id)->delete();
 
         $desks = $plan->desks()->orderBy('position_row')->orderBy('position_col')->get();
-        $students = $this->getStudentsProperty()->shuffle()->values();
+        $students = $this->getStudentsProperty();
 
-        $studentIndex = 0;
+        if ($desks->isEmpty() || $students->isEmpty()) {
+            $this->selectedStudentId = null;
 
-        foreach ($desks as $desk) {
-            for ($seatIndex = 0; $seatIndex < $desk->capacity; $seatIndex++) {
-                if ($studentIndex >= $students->count()) {
-                    break 2;
-                }
+            return;
+        }
 
-                SeatingPlanSeat::create([
-                    'seating_plan_id' => $plan->id,
-                    'seating_plan_desk_id' => $desk->id,
-                    'seat_index' => $seatIndex,
-                    'student_id' => $students[$studentIndex]->id,
-                ]);
+        $deskData = $desks->mapWithKeys(fn (SeatingPlanDesk $desk) => [
+            $desk->id => ['row' => $desk->position_row, 'col' => $desk->position_col, 'capacity' => $desk->capacity],
+        ])->all();
 
-                $studentIndex++;
-            }
+        $studentIds = $students->pluck('id')->all();
+
+        $rowPreferences = $students->filter(fn (Student $student) => filled($student->seating_row_preference))
+            ->mapWithKeys(fn (Student $student) => [$student->id => $student->seating_row_preference])
+            ->all();
+
+        // Teachers enter 1-based column numbers ("colonne 1, 2, 3..."), the
+        // grid itself is 0-indexed internally.
+        $allowedColumns = $students->filter(fn (Student $student) => filled($student->seating_allowed_columns))
+            ->mapWithKeys(fn (Student $student) => [
+                $student->id => array_map(fn ($column) => max(0, ((int) $column) - 1), $student->seating_allowed_columns),
+            ])
+            ->all();
+
+        [$nextToPairs, $notNextToPairs, $farFromPairs] = $this->gatherSeatingPairs($studentIds);
+
+        $result = app(SeatingAssigner::class)->assign(
+            studentIds: $studentIds,
+            desks: $deskData,
+            rowPreferences: $rowPreferences,
+            allowedColumns: $allowedColumns,
+            nextToPairs: $nextToPairs,
+            notNextToPairs: $notNextToPairs,
+            farFromPairs: $farFromPairs,
+        );
+
+        $nextSeatIndex = [];
+
+        foreach ($result->placements as $studentId => $deskId) {
+            $seatIndex = $nextSeatIndex[$deskId] ?? 0;
+
+            SeatingPlanSeat::create([
+                'seating_plan_id' => $plan->id,
+                'seating_plan_desk_id' => $deskId,
+                'seat_index' => $seatIndex,
+                'student_id' => $studentId,
+            ]);
+
+            $nextSeatIndex[$deskId] = $seatIndex + 1;
+        }
+
+        if ($result->unresolvedConflicts !== []) {
+            Notification::make()
+                ->title("Certaines consignes n'ont pas pu être respectées")
+                ->body($this->describeConflicts($result->unresolvedConflicts))
+                ->warning()
+                ->send();
         }
 
         $this->selectedStudentId = null;
+    }
+
+    /**
+     * @param  int[]  $studentIds
+     * @return array{0: array<int, array{0: int, 1: int}>, 1: array<int, array{0: int, 1: int}>, 2: array<int, array{0: int, 1: int}>}
+     */
+    private function gatherSeatingPairs(array $studentIds): array
+    {
+        $rows = DB::table('student_seating_pairs')
+            ->whereIn('student_id', $studentIds)
+            ->whereIn('related_student_id', $studentIds)
+            ->get(['student_id', 'related_student_id', 'type']);
+
+        $pairs = ['next_to' => [], 'not_next_to' => [], 'far_from' => []];
+
+        foreach ($rows as $row) {
+            $pairs[$row->type][] = [(int) $row->student_id, (int) $row->related_student_id];
+        }
+
+        return [$pairs['next_to'], $pairs['not_next_to'], $pairs['far_from']];
+    }
+
+    /**
+     * @param  array<int, array{type: string, pair?: array{0: int, 1: int}, members?: int[]}>  $conflicts
+     */
+    private function describeConflicts(array $conflicts): string
+    {
+        $students = $this->getStudentsProperty()->keyBy('id');
+        $name = fn (int $id) => $students->get($id)?->full_name ?? '?';
+
+        $lines = collect($conflicts)->map(function (array $conflict) use ($name) {
+            return match ($conflict['type']) {
+                'next_to_vs_conflict' => 'Contrainte contradictoire entre '.$name($conflict['pair'][0]).' et '.$name($conflict['pair'][1]).' (à côté de / pas à côté de).',
+                'next_to_too_large' => 'Groupe à garder ensemble trop grand pour un bureau : '.collect($conflict['members'])->map($name)->implode(', ').'.',
+                'insufficient_desks' => 'Pas assez de places : '.collect($conflict['members'])->map($name)->implode(', ').' n\'ont pas pu être placé(e)s.',
+                default => 'Une contrainte n\'a pas pu être respectée.',
+            };
+        });
+
+        return $lines->implode(' ');
     }
 
     public function clearSeats(): void

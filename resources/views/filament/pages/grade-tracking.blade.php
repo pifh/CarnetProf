@@ -92,7 +92,7 @@
                                             <div class="h-8 w-8 shrink-0 overflow-hidden rounded-full">
                                                 @include('filament.pages.partials.student-photo', ['student' => $student, 'class' => 'h-8 w-8 rounded-full object-cover'])
                                             </div>
-                                            <span>{{ $student->first_name }} {{ $student->last_name }}</span>
+                                            <x-student-name :student="$student" />
                                         </div>
                                     </td>
                                     @foreach ($evaluations as $evaluation)
@@ -171,7 +171,7 @@
                                         <div class="h-8 w-8 shrink-0 overflow-hidden rounded-full">
                                             @include('filament.pages.partials.student-photo', ['student' => $student, 'class' => 'h-8 w-8 rounded-full object-cover'])
                                         </div>
-                                        <span>{{ $student->first_name }} {{ $student->last_name }}</span>
+                                        <x-student-name :student="$student" />
                                     </div>
                                 </td>
                                 @foreach ($this->terms as $term)
