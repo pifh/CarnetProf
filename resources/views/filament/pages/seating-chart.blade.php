@@ -74,7 +74,7 @@
         {{-- Every date this room+class pair has ever been used, most recent
              first — the whole point is to make it trivial to glance back
              before creating the next one. --}}
-        <div class="w-full shrink-0 lg:w-64">
+        <div class="w-full shrink-0 lg:w-96">
             <x-filament::section>
                 <x-slot name="heading">Dates pour cette disposition et cette classe</x-slot>
 
@@ -83,59 +83,64 @@
                     Afficher les dates archivées
                 </label>
 
-                <div class="flex flex-col gap-1">
-                    @forelse ($this->applications as $application)
-                        <button
-                            type="button"
-                            wire:click="selectApplication({{ $application->id }})"
-                            @class([
-                                'rounded-lg border px-3 py-2 text-left text-sm',
-                                'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300' => $applicationId === $application->id,
-                                'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10' => $applicationId !== $application->id,
-                            ])
-                        >
-                            {{ $application->effective_date?->format('d/m/Y') ?? 'Sans date' }}
-                            @if ($application->is_archived)
-                                <span class="text-xs text-gray-400">(archivée)</span>
-                            @endif
-                        </button>
-                    @empty
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Aucune date pour l'instant.</p>
-                    @endforelse
-                </div>
+                <div class="flex items-start gap-3">
+                    {{-- Compact date chips on the left, current-application
+                         controls to their right — not stacked below, so both
+                         stay visible together without scrolling. --}}
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        @forelse ($this->applications as $application)
+                            <button
+                                type="button"
+                                wire:click="selectApplication({{ $application->id }})"
+                                @class([
+                                    'rounded-md border px-2 py-1 text-left text-xs',
+                                    'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300' => $applicationId === $application->id,
+                                    'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10' => $applicationId !== $application->id,
+                                ])
+                            >
+                                {{ $application->effective_date?->format('d/m/Y') ?? 'Sans date' }}
+                                @if ($application->is_archived)
+                                    <span class="text-[10px] text-gray-400">(archivée)</span>
+                                @endif
+                            </button>
+                        @empty
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Aucune date pour l'instant.</p>
+                        @endforelse
 
-                <x-filament::button color="gray" class="mt-3 w-full justify-center" wire:click="createApplication">
-                    + Nouvelle date
-                </x-filament::button>
-
-                @if ($this->currentApplication)
-                    <div class="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4 dark:border-white/5">
-                        <div>
-                            <label class="text-xs font-medium text-gray-700 dark:text-gray-300">Date effective</label>
-                            <x-filament::input.wrapper>
-                                <x-filament::input
-                                    type="date"
-                                    value="{{ $effectiveDate }}"
-                                    wire:change="updateEffectiveDate($event.target.value)"
-                                    wire:key="app-date-{{ $applicationId }}"
-                                />
-                            </x-filament::input.wrapper>
-                        </div>
-
-                        <x-filament::button color="gray" size="sm" wire:click="toggleArchiveApplication">
-                            {{ $this->currentApplication->is_archived ? 'Désarchiver cette date' : 'Archiver cette date' }}
-                        </x-filament::button>
-
-                        <x-filament::button
-                            color="danger"
-                            size="sm"
-                            wire:click="deleteApplication"
-                            onclick="confirm('Supprimer ce plan de classe pour cette date ?') || event.stopImmediatePropagation()"
-                        >
-                            Supprimer cette date
+                        <x-filament::button color="gray" size="xs" class="mt-1 w-full justify-center" wire:click="createApplication">
+                            + Nouvelle date
                         </x-filament::button>
                     </div>
-                @endif
+
+                    @if ($this->currentApplication)
+                        <div class="flex w-36 shrink-0 flex-col gap-2 border-l border-gray-100 pl-3 dark:border-white/5">
+                            <div>
+                                <label class="text-xs font-medium text-gray-700 dark:text-gray-300">Date effective</label>
+                                <x-filament::input.wrapper>
+                                    <x-filament::input
+                                        type="date"
+                                        value="{{ $effectiveDate }}"
+                                        wire:change="updateEffectiveDate($event.target.value)"
+                                        wire:key="app-date-{{ $applicationId }}"
+                                    />
+                                </x-filament::input.wrapper>
+                            </div>
+
+                            <x-filament::button color="gray" size="xs" wire:click="toggleArchiveApplication">
+                                {{ $this->currentApplication->is_archived ? 'Désarchiver' : 'Archiver' }}
+                            </x-filament::button>
+
+                            <x-filament::button
+                                color="danger"
+                                size="xs"
+                                wire:click="deleteApplication"
+                                onclick="confirm('Supprimer ce plan de classe pour cette date ?') || event.stopImmediatePropagation()"
+                            >
+                                Supprimer
+                            </x-filament::button>
+                        </div>
+                    @endif
+                </div>
             </x-filament::section>
         </div>
 
@@ -180,9 +185,9 @@
                                 </div>
                             @endif
 
-                            <div class="flex flex-col gap-3">
+                            <div class="flex flex-col gap-3" wire:key="grid-{{ $grid['rows'] }}-{{ $grid['cols'] }}">
                                 @for ($row = 0; $row < $grid['rows']; $row++)
-                                    <div class="flex flex-wrap gap-3">
+                                    <div class="flex flex-wrap gap-3" wire:key="row-{{ $row }}">
                                         @for ($col = 0; $col < $grid['cols']; $col++)
                                             @php($desk = $deskMap->get($row.'-'.$col))
 

@@ -119,9 +119,14 @@
                 </div>
             @endif
 
-            <div class="flex flex-col gap-3">
+            {{-- Keyed on its own dimensions: a row/column count change makes
+                 this a "different" element to Livewire's morph, forcing a
+                 full subtree replace instead of an in-place diff — with only
+                 the inner rows keyed, morphdom can leave a stale trailing
+                 row/column in the DOM until the next, unrelated render. --}}
+            <div class="flex flex-col gap-3" wire:key="grid-{{ $grid['rows'] }}-{{ $grid['cols'] }}">
                 @for ($row = 0; $row < $grid['rows']; $row++)
-                    <div class="flex flex-wrap gap-3">
+                    <div class="flex flex-wrap gap-3" wire:key="row-{{ $row }}">
                         @for ($col = 0; $col < $grid['cols']; $col++)
                             @php($desk = $deskMap->get($row.'-'.$col))
 
@@ -170,6 +175,7 @@
                                 <button
                                     type="button"
                                     wire:click="addDesk({{ $row }}, {{ $col }})"
+                                    wire:key="empty-{{ $row }}-{{ $col }}"
                                     class="flex h-[5.5rem] w-24 items-center justify-center rounded-lg border-2 border-dashed border-gray-200 text-gray-300 hover:border-gray-300 hover:text-gray-400 dark:border-white/5 dark:text-white/10 dark:hover:border-white/10"
                                 >
                                     +

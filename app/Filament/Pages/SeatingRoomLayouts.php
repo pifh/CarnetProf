@@ -254,7 +254,12 @@ class SeatingRoomLayouts extends Page
             return;
         }
 
-        $lastRow = $this->gridSize['rows'] - 1;
+        // Deliberately not $this->gridSize here: that computed property
+        // memoizes for the rest of the request the moment it's read, so if
+        // the desk delete below ran first, the render at the end of this
+        // same request would still show the row we just removed.
+        $maxDeskRow = SeatingPlanDesk::query()->where('seating_plan_id', $plan->id)->max('position_row');
+        $lastRow = max($this->gridRows, $maxDeskRow !== null ? $maxDeskRow + 1 : 0) - 1;
 
         if ($lastRow < 0) {
             return;
@@ -273,7 +278,10 @@ class SeatingRoomLayouts extends Page
             return;
         }
 
-        $lastCol = $this->gridSize['cols'] - 1;
+        // See removeRow(): must not read the memoized $this->gridSize before
+        // the delete, or the render at the end of this request goes stale.
+        $maxDeskCol = SeatingPlanDesk::query()->where('seating_plan_id', $plan->id)->max('position_col');
+        $lastCol = max($this->gridCols, $maxDeskCol !== null ? $maxDeskCol + 1 : 0) - 1;
 
         if ($lastCol < 0) {
             return;
