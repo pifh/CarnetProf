@@ -6,14 +6,20 @@ use App\Models\Concerns\BelongsToTeacher;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Auth;
 
-#[Fillable(['student_id', 'type', 'starts_at', 'ends_at', 'all_day', 'notes'])]
-class StudentEvent extends Model
+#[Fillable(['type', 'title', 'notes', 'starts_at', 'ends_at', 'all_day'])]
+class CalendarEvent extends Model
 {
     use BelongsToTeacher, HasFactory;
+
+    const TYPE_REUNION = 'reunion';
+
+    const TYPE_RDV = 'rdv';
+
+    const TYPE_ETABLISSEMENT = 'etablissement';
+
+    const TYPE_VACANCES = 'vacances';
 
     protected function casts(): array
     {
@@ -29,31 +35,26 @@ class StudentEvent extends Model
         // Attachment files must be purged from disk when an event is removed,
         // which only happens if each child row goes through Eloquent's own
         // delete (the FK's cascadeOnDelete is just a DB-level backstop).
-        static::deleting(function (StudentEvent $event) {
+        static::deleting(function (CalendarEvent $event) {
             $event->attachments->each->delete();
         });
     }
 
-    public function student(): BelongsTo
-    {
-        return $this->belongsTo(Student::class);
-    }
-
     public function attachments(): HasMany
     {
-        return $this->hasMany(StudentEventAttachment::class);
+        return $this->hasMany(CalendarEventAttachment::class);
     }
 
     /**
-     * @return array<int, string>
+     * @return array<string, string>
      */
-    public static function allTypes(): array
+    public static function typeLabels(): array
     {
-        return static::query()
-            ->where('user_id', Auth::id())
-            ->distinct()
-            ->orderBy('type')
-            ->pluck('type')
-            ->all();
+        return [
+            self::TYPE_REUNION => 'Réunion',
+            self::TYPE_RDV => 'Rendez-vous',
+            self::TYPE_ETABLISSEMENT => 'Événement établissement',
+            self::TYPE_VACANCES => 'Vacances',
+        ];
     }
 }

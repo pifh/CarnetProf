@@ -23,6 +23,11 @@ class LogbookEntriesTable
                     ->label('Date')
                     ->date('d/m/Y')
                     ->sortable(),
+                TextColumn::make('status')
+                    ->label('Statut')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state) => $state === 'planned' ? 'Prévue' : 'Faite')
+                    ->color(fn (string $state) => $state === 'planned' ? 'warning' : 'success'),
                 TextColumn::make('schoolClass.name')
                     ->label('Classe')
                     ->badge()

@@ -2,15 +2,14 @@
 
 namespace Database\Factories;
 
-use App\Models\Student;
-use App\Models\StudentEvent;
+use App\Models\CalendarEvent;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<StudentEvent>
+ * @extends Factory<CalendarEvent>
  */
-class StudentEventFactory extends Factory
+class CalendarEventFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -21,12 +20,12 @@ class StudentEventFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'student_id' => Student::factory(),
-            'type' => fake()->randomElement(['Réunion parents', 'Avertissement', 'Rencontre mensuelle']),
-            'starts_at' => fake()->dateTimeBetween('-6 months', 'now'),
+            'type' => CalendarEvent::TYPE_REUNION,
+            'title' => fake()->sentence(3),
+            'notes' => fake()->paragraph(),
+            'starts_at' => fake()->dateTimeBetween('now', '+2 weeks'),
             'ends_at' => null,
             'all_day' => true,
-            'notes' => fake()->sentence(),
         ];
     }
 }

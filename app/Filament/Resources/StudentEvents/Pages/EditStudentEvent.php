@@ -16,4 +16,13 @@ class EditStudentEvent extends EditRecord
             DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        if ($data['all_day'] ?? false) {
+            $data['ends_at'] = null;
+        }
+
+        return $data;
+    }
 }

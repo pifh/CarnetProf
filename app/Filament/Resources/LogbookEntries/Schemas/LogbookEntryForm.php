@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\LogbookEntries\Schemas;
 
+use App\Models\EcoleDirecteEvent;
+use App\Models\LogbookEntry;
 use App\Models\SchoolClass;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -42,6 +44,38 @@ class LogbookEntryForm
                     ->default(now())
                     ->required(),
 
+                Select::make('status')
+                    ->label('Statut')
+                    ->options([
+                        LogbookEntry::STATUS_PLANNED => 'Prévue',
+                        LogbookEntry::STATUS_DONE => 'Faite',
+                    ])
+                    ->default(LogbookEntry::STATUS_DONE)
+                    ->live()
+                    ->required(),
+
+                Select::make('ecole_directe_event_id')
+                    ->label('Séance de l\'emploi du temps (École-Directe)')
+                    ->placeholder('Aucune')
+                    ->options(function () {
+                        return EcoleDirecteEvent::query()
+                            ->where('user_id', Auth::id())
+                            ->whereBetween('starts_at', [now()->subDays(60), now()->addDays(60)])
+                            ->orderBy('starts_at')
+                            ->get()
+                            ->mapWithKeys(fn (EcoleDirecteEvent $event) => [
+                                $event->id => $event->starts_at->format('d/m/Y H:i').' — '.$event->title,
+                            ]);
+                    })
+                    ->searchable()
+                    ->live()
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        if ($state) {
+                            $set('date', EcoleDirecteEvent::query()->find($state)?->starts_at?->toDateString());
+                        }
+                    })
+                    ->columnSpanFull(),
+
                 Select::make('progression_sequence_id')
                     ->label('Séquence liée')
                     ->placeholder('Aucune')
@@ -63,7 +97,7 @@ class LogbookEntryForm
 
                 Textarea::make('content')
                     ->label('Contenu de la séance')
-                    ->required()
+                    ->required(fn (callable $get) => $get('status') === LogbookEntry::STATUS_DONE)
                     ->rows(4)
                     ->columnSpanFull(),
 

@@ -8,10 +8,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['school_class_id', 'subject_id', 'progression_sequence_id', 'date', 'content', 'homework', 'homework_due_date'])]
+#[Fillable(['school_class_id', 'subject_id', 'progression_sequence_id', 'ecole_directe_event_id', 'date', 'status', 'content', 'homework', 'homework_due_date'])]
 class LogbookEntry extends Model
 {
     use BelongsToTeacher, HasFactory;
+
+    const STATUS_PLANNED = 'planned';
+
+    const STATUS_DONE = 'done';
 
     protected function casts(): array
     {
@@ -34,5 +38,10 @@ class LogbookEntry extends Model
     public function progressionSequence(): BelongsTo
     {
         return $this->belongsTo(ProgressionSequence::class);
+    }
+
+    public function ecoleDirecteEvent(): BelongsTo
+    {
+        return $this->belongsTo(EcoleDirecteEvent::class);
     }
 }

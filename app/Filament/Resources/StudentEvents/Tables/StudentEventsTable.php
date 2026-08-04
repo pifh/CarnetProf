@@ -18,9 +18,9 @@ class StudentEventsTable
     {
         return $table
             ->columns([
-                TextColumn::make('event_date')
-                    ->label('Date')
-                    ->date('d/m/Y')
+                TextColumn::make('starts_at')
+                    ->label('Début')
+                    ->formatStateUsing(fn ($state, $record) => $state->format($record->all_day ? 'd/m/Y' : 'd/m/Y H:i'))
                     ->sortable(),
                 TextColumn::make('type')
                     ->label('Type')
@@ -43,7 +43,7 @@ class StudentEventsTable
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->defaultSort('event_date', 'desc')
+            ->defaultSort('starts_at', 'desc')
             ->filters([
                 SelectFilter::make('student_id')
                     ->label('Classe')

@@ -23,6 +23,7 @@ class LogbookEntryFactory extends Factory
             'user_id' => User::factory(),
             'school_class_id' => SchoolClass::factory(),
             'date' => fake()->dateTimeBetween('-1 month', 'now'),
+            'status' => LogbookEntry::STATUS_DONE,
             'content' => fake()->sentence(8),
         ];
     }
@@ -32,6 +33,14 @@ class LogbookEntryFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'homework' => fake()->sentence(6),
             'homework_due_date' => fake()->dateTimeBetween('now', '+2 weeks'),
+        ]);
+    }
+
+    public function planned(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => LogbookEntry::STATUS_PLANNED,
+            'content' => null,
         ]);
     }
 }

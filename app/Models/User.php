@@ -20,8 +20,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
-#[Fillable(['name', 'email', 'password', 'avatar', 'role'])]
+#[Fillable(['name', 'email', 'password', 'avatar', 'role', 'ecole_directe_ics_url', 'calendar_feed_categories'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, HasAvatar, HasEmailAuthentication, MustVerifyEmail
 {
@@ -34,6 +35,16 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     const ROLE_SUPERADMIN = 'superadmin';
 
+    const CALENDAR_FEED_CATEGORIES = [
+        'cours',
+        'reunions_eleves',
+        'reunions_rdv',
+        'etablissement',
+        'vacances',
+        'anniversaires_eleves',
+        'anniversaires_personnels',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -45,6 +56,9 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'email_verified_at' => 'datetime',
             'consent_accepted_at' => 'datetime',
             'password' => 'hashed',
+            'ecole_directe_ics_url' => 'encrypted',
+            'ecole_directe_synced_at' => 'datetime',
+            'calendar_feed_categories' => 'array',
         ];
     }
 
@@ -71,5 +85,26 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function getFilamentAvatarUrl(): ?string
     {
         return $this->avatar ? Storage::disk('public')->url($this->avatar) : null;
+    }
+
+    public function ensureCalendarToken(): string
+    {
+        if (blank($this->calendar_token)) {
+            $this->regenerateCalendarToken();
+        }
+
+        return $this->calendar_token;
+    }
+
+    public function regenerateCalendarToken(): string
+    {
+        $this->forceFill(['calendar_token' => Str::random(40)])->save();
+
+        return $this->calendar_token;
+    }
+
+    public function calendarFeedCategoriesOrDefault(): array
+    {
+        return $this->calendar_feed_categories ?? self::CALENDAR_FEED_CATEGORIES;
     }
 }

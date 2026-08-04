@@ -2,11 +2,13 @@
 
 use App\Filament\Resources\LogbookEntries\Pages\ListLogbookEntries;
 use App\Filament\Widgets\UpcomingHomework;
+use App\Models\EcoleDirecteEvent;
 use App\Models\LogbookEntry;
 use App\Models\ProgressionSequence;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 
@@ -88,4 +90,32 @@ it('keeps logbook entries and their linked sequences separate per subject', func
         ->and($mathsEntry->progressionSequence->id)->toBe($mathsSequence->id)
         ->and($infoEntry->subject->id)->toBe($informatique->id)
         ->and($infoEntry->progressionSequence->id)->toBe($infoSequence->id);
+});
+
+it('defaults new logbook entries to status done', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $entry = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    expect($entry->status)->toBe(LogbookEntry::STATUS_DONE);
+});
+
+it('allows a planned séance to have no content', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $entry = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->planned()->create();
+
+    expect($entry->status)->toBe(LogbookEntry::STATUS_PLANNED)
+        ->and($entry->content)->toBeNull();
+});
+
+it('links a séance to at most one Ecole-Directe occurrence', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $edEvent = EcoleDirecteEvent::factory()->for($teacher)->create();
+
+    LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create(['ecole_directe_event_id' => $edEvent->id]);
+
+    expect(fn () => LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create(['ecole_directe_event_id' => $edEvent->id]))
+        ->toThrow(QueryException::class);
 });

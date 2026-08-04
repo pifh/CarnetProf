@@ -16,6 +16,7 @@
         "league/flysystem-sftp-v3": "^3.33",
         "league/flysystem-webdav": "^3.31",
         "maatwebsite/excel": "^3.1",
+        "sabre/vobject": "^4.2",
         "spatie/laravel-backup": "^10.3"
     },
     "require-dev": {

@@ -118,7 +118,7 @@ class Student extends Model
 
     public function events(): HasMany
     {
-        return $this->hasMany(StudentEvent::class)->orderByDesc('event_date');
+        return $this->hasMany(StudentEvent::class)->orderByDesc('starts_at');
     }
 
     public function currentPhoto(): HasOne

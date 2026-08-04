@@ -23,7 +23,8 @@ it('creates a student event stamped with the teacher\'s id', function () {
         ->fillForm([
             'student_id' => $student->id,
             'type' => 'Réunion parents',
-            'event_date' => '2026-05-10',
+            'all_day' => true,
+            'starts_at' => '2026-05-10',
             'notes' => 'Discussion sur les progrès en mathématiques.',
         ])
         ->call('create')
@@ -33,7 +34,59 @@ it('creates a student event stamped with the teacher\'s id', function () {
 
     expect($event->type)->toBe('Réunion parents')
         ->and($event->notes)->toBe('Discussion sur les progrès en mathématiques.')
+        ->and($event->all_day)->toBeTrue()
+        ->and($event->starts_at->format('Y-m-d'))->toBe('2026-05-10')
+        ->and($event->ends_at)->toBeNull()
         ->and($event->user_id)->toBe($teacher->id);
+});
+
+it('creates a timed student event with a start and end time', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(CreateStudentEvent::class)
+        ->fillForm([
+            'student_id' => $student->id,
+            'type' => 'Réunion parents',
+            'all_day' => false,
+            'starts_at' => '2026-05-10 14:00',
+            'ends_at' => '2026-05-10 14:30',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $event = StudentEvent::query()->where('student_id', $student->id)->sole();
+
+    expect($event->all_day)->toBeFalse()
+        ->and($event->starts_at->format('Y-m-d H:i'))->toBe('2026-05-10 14:00')
+        ->and($event->ends_at->format('Y-m-d H:i'))->toBe('2026-05-10 14:30');
+});
+
+it('clears the end time when an event is switched back to all-day', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $event = StudentEvent::factory()->for($teacher)->for($student)->create([
+        'all_day' => false,
+        'starts_at' => '2026-05-10 14:00',
+        'ends_at' => '2026-05-10 14:30',
+    ]);
+
+    $this->actingAs($teacher);
+
+    Livewire::test(EditStudentEvent::class, ['record' => $event->getKey()])
+        ->fillForm([
+            'all_day' => true,
+            'starts_at' => '2026-05-10',
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($event->fresh()->all_day)->toBeTrue()
+        ->and($event->fresh()->ends_at)->toBeNull();
 });
 
 it('attaches an uploaded file to an event and stores its original filename', function () {
