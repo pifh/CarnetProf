@@ -57,6 +57,10 @@ class AppPanelProvider extends PanelProvider
                 AccountWidget::class,
             ])
             ->renderHook(
+                PanelsRenderHook::BODY_START,
+                fn (): string => Blade::render('@livewire(\'impersonation-banner\')'),
+            )
+            ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn (): string => Blade::render('@livewire(\'student-preview-modal\')'),
             )

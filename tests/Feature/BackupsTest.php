@@ -31,8 +31,8 @@ it('lists existing backups from the configured disk', function () {
     Storage::fake('local');
     Storage::disk('local')->put('CarnetProf/2026-01-01-10-00-00.zip', str_repeat('a', 2048));
 
-    $teacher = User::factory()->create();
-    $this->actingAs($teacher);
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin);
 
     $backups = Livewire::test(Backups::class)->get('backups');
 
@@ -44,10 +44,24 @@ it('lists existing backups from the configured disk', function () {
 it('runs a manual backup and reports the outcome', function () {
     Storage::fake('local');
 
-    $teacher = User::factory()->create();
-    $this->actingAs($teacher);
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin);
 
     Livewire::test(Backups::class)->call('runBackup');
 
     expect(Storage::disk('local')->allFiles())->not->toBeEmpty();
+});
+
+it('denies a plain teacher access to the site backups page', function () {
+    $teacher = User::factory()->create();
+    $this->actingAs($teacher);
+
+    Livewire::test(Backups::class)->assertForbidden();
+});
+
+it('allows an admin to access the site backups page', function () {
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin);
+
+    Livewire::test(Backups::class)->assertSuccessful();
 });

@@ -9,8 +9,10 @@ use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
 use Spatie\Backup\BackupDestination\BackupDestinationFactory;
 use Spatie\Backup\Config\Config;
+use UnitEnum;
 
 class Backups extends Page
 {
@@ -22,7 +24,14 @@ class Backups extends Page
 
     protected static ?int $navigationSort = 86;
 
+    protected static string|UnitEnum|null $navigationGroup = 'Administration';
+
     protected string $view = 'filament.pages.backups';
+
+    public static function canAccess(): bool
+    {
+        return Auth::user()?->isAdmin() ?? false;
+    }
 
     /**
      * @return Collection<int, array{disk: string, date: Carbon, size: string}>
