@@ -121,6 +121,11 @@ class Student extends Model
         return $this->hasMany(StudentEvent::class)->orderByDesc('starts_at');
     }
 
+    public function disciplineEntries(): HasMany
+    {
+        return $this->hasMany(DisciplineEntry::class)->orderByDesc('occurred_at');
+    }
+
     public function currentPhoto(): HasOne
     {
         return $this->hasOne(StudentPhoto::class)->where('is_current', true);

@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Filament\Navigation\UserNavigationManager;
 use App\Models\BackupDestination;
 use App\Services\BackupDestinationDiskFactory;
+use Filament\Navigation\NavigationManager;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
@@ -30,6 +32,19 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerWebDavDriver();
         $this->registerSiteBackupDestinations();
+        $this->registerUserNavigationManager();
+    }
+
+    /**
+     * Overrides Filament's own binding (registered in its ServiceProvider's
+     * register(), which may run before or after this one) so every
+     * teacher's sidebar_order/sidebar_hidden preferences apply on top of
+     * the panel's auto-discovered navigation. Must happen in boot(), not
+     * register(), to reliably win regardless of provider load order.
+     */
+    private function registerUserNavigationManager(): void
+    {
+        $this->app->scoped(NavigationManager::class, fn () => new UserNavigationManager);
     }
 
     /**

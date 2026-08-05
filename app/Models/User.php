@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\DisciplineCategories;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Concerns\InteractsWithAppAuthentication;
 use Filament\Auth\MultiFactor\App\Concerns\InteractsWithAppAuthenticationRecovery;
@@ -22,7 +23,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'email', 'password', 'avatar', 'role', 'ecole_directe_ics_url', 'calendar_feed_categories'])]
+#[Fillable(['name', 'email', 'password', 'avatar', 'role', 'ecole_directe_ics_url', 'calendar_feed_categories', 'sidebar_order', 'sidebar_hidden', 'discipline_thresholds'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery, HasAvatar, HasEmailAuthentication, MustVerifyEmail
 {
@@ -59,6 +60,9 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'ecole_directe_ics_url' => 'encrypted',
             'ecole_directe_synced_at' => 'datetime',
             'calendar_feed_categories' => 'array',
+            'sidebar_order' => 'array',
+            'sidebar_hidden' => 'array',
+            'discipline_thresholds' => 'array',
         ];
     }
 
@@ -106,5 +110,29 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     public function calendarFeedCategoriesOrDefault(): array
     {
         return $this->calendar_feed_categories ?? self::CALENDAR_FEED_CATEGORIES;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function sidebarOrder(): array
+    {
+        return $this->sidebar_order ?? [];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function sidebarHidden(): array
+    {
+        return $this->sidebar_hidden ?? [];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    public function disciplineThresholdsOrDefault(): array
+    {
+        return array_merge(DisciplineCategories::defaultThresholds(), $this->discipline_thresholds ?? []);
     }
 }
