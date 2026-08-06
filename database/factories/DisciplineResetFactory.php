@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\DisciplineReset;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\DisciplineCategories;
@@ -23,6 +24,7 @@ class DisciplineResetFactory extends Factory
         return [
             'user_id' => User::factory(),
             'student_id' => Student::factory(),
+            'school_class_id' => SchoolClass::factory(),
             'category' => fake()->randomElement(DisciplineCategories::ALL),
             'last_entry_id' => null,
         ];

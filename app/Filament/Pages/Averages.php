@@ -88,10 +88,7 @@ class Averages extends Page
      */
     public function getTermsProperty(): Collection
     {
-        return Term::query()
-            ->where('user_id', Auth::id())
-            ->orderBy('position')
-            ->get();
+        return Term::hierarchicalForTeacher();
     }
 
     /**
@@ -109,7 +106,7 @@ class Averages extends Page
         $subject = $this->subjectId ? $this->getSubjectsProperty()->firstWhere('id', $this->subjectId) : null;
         $calculator = app(GradeCalculator::class);
 
-        $rows = $schoolClass->students()
+        $rows = $schoolClass->allStudents()
             ->where('is_archived', false)
             ->orderBy('last_name')
             ->orderBy('first_name')
@@ -144,11 +141,11 @@ class Averages extends Page
     public function downloadBulletin(int $studentId)
     {
         $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
-        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+        $term = $this->termId ? $this->getTermsProperty()->firstWhere('id', $this->termId) : null;
         $subject = $this->subjectId ? $this->getSubjectsProperty()->firstWhere('id', $this->subjectId) : null;
-        $student = $schoolClass?->students()->find($studentId);
+        $student = $schoolClass?->allStudents()->find($studentId);
 
-        if (! $schoolClass || ! $term || ! $student) {
+        if (! $schoolClass || ! $student) {
             return null;
         }
 
@@ -163,23 +160,23 @@ class Averages extends Page
     public function downloadClassBulletins()
     {
         $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
-        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+        $term = $this->termId ? $this->getTermsProperty()->firstWhere('id', $this->termId) : null;
         $subject = $this->subjectId ? $this->getSubjectsProperty()->firstWhere('id', $this->subjectId) : null;
 
-        if (! $schoolClass || ! $term) {
+        if (! $schoolClass) {
             return null;
         }
 
         $generator = app(BulletinGenerator::class);
 
-        $bulletins = $schoolClass->students()
+        $bulletins = $schoolClass->allStudents()
             ->where('is_archived', false)
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get()
             ->map(fn (Student $student) => $generator->build($student, $schoolClass, $term, $subject));
 
-        $filename = 'bulletins-'.str($schoolClass->name.'-'.$term->label)->slug().'.pdf';
+        $filename = 'bulletins-'.str($schoolClass->name.'-'.($term?->label ?? 'Année complète'))->slug().'.pdf';
         $pdf = Pdf::loadView('pdf.bulletin', ['bulletins' => $bulletins]);
 
         return response()->streamDownload(fn () => print ($pdf->output()), $filename, ['Content-Type' => 'application/pdf']);

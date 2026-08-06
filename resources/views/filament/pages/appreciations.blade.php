@@ -29,19 +29,10 @@
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Période</label>
                 <x-filament::input.wrapper>
                     <x-filament::input.select wire:model.live="termId">
+                        <option value="">Année complète</option>
                         @foreach ($this->terms as $term)
-                            <option value="{{ $term->id }}">{{ $term->label }}</option>
+                            <option value="{{ $term->id }}">{{ $term->parent_id ? '— ' : '' }}{{ $term->label }}</option>
                         @endforeach
-                    </x-filament::input.select>
-                </x-filament::input.wrapper>
-            </div>
-
-            <div>
-                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-                <x-filament::input.wrapper>
-                    <x-filament::input.select wire:model.live="type">
-                        <option value="general">Générale</option>
-                        <option value="disciplinary">Disciplinaire</option>
                     </x-filament::input.select>
                 </x-filament::input.wrapper>
             </div>
@@ -77,11 +68,9 @@
                                     </x-filament::input.wrapper>
                                 @endif
 
-                                @if ($type === 'general')
-                                    <x-filament::button size="xs" color="gray" wire:click="suggest({{ $student->id }})">
-                                        Suggérer
-                                    </x-filament::button>
-                                @endif
+                                <x-filament::button size="xs" color="gray" wire:click="suggest({{ $student->id }})">
+                                    Suggérer
+                                </x-filament::button>
 
                                 <x-filament::button
                                     size="xs"

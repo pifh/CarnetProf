@@ -64,7 +64,7 @@ class ImportClassPhotos extends Page
      */
     public function getRosterProperty(): Collection
     {
-        return $this->schoolClass->students()
+        return $this->schoolClass->allStudents()
             ->where('is_archived', false)
             ->orderBy('last_name')
             ->orderBy('first_name')

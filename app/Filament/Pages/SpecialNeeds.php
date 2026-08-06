@@ -62,7 +62,7 @@ class SpecialNeeds extends Page
             return collect();
         }
 
-        return $schoolClass->students()
+        return $schoolClass->allStudents()
             ->where('is_archived', false)
             ->whereNotNull('special_needs')
             ->orderBy('last_name')

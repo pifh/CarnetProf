@@ -12,6 +12,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\ViewField;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
@@ -31,6 +32,7 @@ class StudentEventForm
                     ->getOptionLabelFromRecordUsing(fn (Student $student) => $student->full_name.($student->schoolClass ? ' — '.$student->schoolClass->name : ''))
                     ->searchable(['first_name', 'last_name'])
                     ->preload()
+                    ->live()
                     ->required(),
 
                 TextInput::make('type')
@@ -72,6 +74,14 @@ class StudentEventForm
                     ->displayFormat('d/m/Y H:i')
                     ->visible(fn (Get $get) => ! $get('all_day'))
                     ->dehydrated(fn (Get $get) => ! $get('all_day')),
+
+                ViewField::make('student_fiche')
+                    ->label('')
+                    ->view('filament.pages.partials.student-fiche-embed')
+                    ->viewData(fn (Get $get) => ['studentId' => $get('student_id')])
+                    ->visible(fn (Get $get) => filled($get('student_id')))
+                    ->dehydrated(false)
+                    ->columnSpanFull(),
 
                 MarkdownEditor::make('notes')
                     ->label('Compte rendu')

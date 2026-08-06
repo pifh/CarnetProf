@@ -26,15 +26,9 @@ class AppreciationFactory extends Factory
             'student_id' => Student::factory(),
             'school_class_id' => SchoolClass::factory(),
             'term_id' => Term::factory(),
-            'type' => 'general',
             'content' => fake()->sentence(),
             'is_draft' => true,
         ];
-    }
-
-    public function disciplinary(): static
-    {
-        return $this->state(fn (array $attributes) => ['type' => 'disciplinary']);
     }
 
     public function final(): static

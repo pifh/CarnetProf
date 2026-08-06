@@ -40,6 +40,28 @@ it('creates a student event stamped with the teacher\'s id', function () {
         ->and($event->user_id)->toBe($teacher->id);
 });
 
+it("shows the selected student's fiche once a student is picked, and keeps saving correctly", function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(CreateStudentEvent::class)
+        ->assertFormFieldIsHidden('student_fiche')
+        ->fillForm(['student_id' => $student->id])
+        ->assertFormFieldIsVisible('student_fiche')
+        ->fillForm([
+            'type' => 'Réunion parents',
+            'all_day' => true,
+            'starts_at' => '2026-05-10',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(StudentEvent::query()->where('student_id', $student->id)->exists())->toBeTrue();
+});
+
 it('creates a timed student event with a start and end time', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();

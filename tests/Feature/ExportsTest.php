@@ -22,14 +22,8 @@ it('builds bulletin data with only published appreciations', function () {
     Grade::factory()->for($teacher)->for($evaluation)->for($student)->create(['score' => 15, 'status' => 'graded']);
 
     Appreciation::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->for($term)->create([
-        'type' => 'general',
         'content' => 'Bon trimestre.',
         'is_draft' => false,
-    ]);
-    Appreciation::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->for($term)->create([
-        'type' => 'disciplinary',
-        'content' => 'Brouillon non publié.',
-        'is_draft' => true,
     ]);
 
     $bulletin = app(BulletinGenerator::class)->build($student, $class, $term);
@@ -37,8 +31,63 @@ it('builds bulletin data with only published appreciations', function () {
     expect($bulletin['average'])->toBe(15.0)
         ->and($bulletin['evaluations'])->toHaveCount(1)
         ->and($bulletin['evaluations']->first()['title'])->toBe('Contrôle 1')
-        ->and($bulletin['generalAppreciation'])->toBe('Bon trimestre.')
-        ->and($bulletin['disciplinaryAppreciation'])->toBeNull();
+        ->and($bulletin['appreciation'])->toBe('Bon trimestre.');
+});
+
+it('excludes draft appreciations from the bulletin', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $term = Term::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    Appreciation::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->for($term)->create([
+        'content' => 'Brouillon non publié.',
+        'is_draft' => true,
+    ]);
+
+    $bulletin = app(BulletinGenerator::class)->build($student, $class, $term);
+
+    expect($bulletin['appreciation'])->toBeNull();
+});
+
+it('builds a full-year bulletin covering every term when no term is passed', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $termA = Term::factory()->for($teacher)->create(['label' => 'Trimestre 1', 'position' => 1]);
+    $termB = Term::factory()->for($teacher)->create(['label' => 'Trimestre 2', 'position' => 2]);
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $evalA = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($termA)->create(['title' => 'Contrôle T1', 'max_score' => 20]);
+    Grade::factory()->for($teacher)->for($evalA)->for($student)->create(['score' => 10, 'status' => 'graded']);
+    $evalB = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($termB)->create(['title' => 'Contrôle T2', 'max_score' => 20]);
+    Grade::factory()->for($teacher)->for($evalB)->for($student)->create(['score' => 20, 'status' => 'graded']);
+
+    Appreciation::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->create([
+        'term_id' => null,
+        'content' => 'Belle année.',
+        'is_draft' => false,
+    ]);
+
+    $bulletin = app(BulletinGenerator::class)->build($student, $class);
+
+    expect($bulletin['term'])->toBeNull()
+        ->and($bulletin['average'])->toBe(15.0)
+        ->and($bulletin['evaluations'])->toHaveCount(2)
+        ->and($bulletin['appreciation'])->toBe('Belle année.');
+});
+
+it('downloads a full-year bulletin PDF when no period is selected on the Moyennes page', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(Averages::class)
+        ->set('schoolClassId', $class->id)
+        ->set('termId', null)
+        ->call('downloadBulletin', $student->id)
+        ->assertFileDownloaded(contentType: 'application/pdf');
 });
 
 it('builds bulletin data scoped to a single subject when the class has several', function () {
@@ -57,7 +106,7 @@ it('builds bulletin data scoped to a single subject when the class has several',
     Grade::factory()->for($teacher)->for($infoEval)->for($student)->create(['score' => 5, 'status' => 'graded']);
 
     Appreciation::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->for($term)->for($maths)->create([
-        'type' => 'general', 'content' => 'Excellent en maths.', 'is_draft' => false,
+        'content' => 'Excellent en maths.', 'is_draft' => false,
     ]);
 
     $bulletin = app(BulletinGenerator::class)->build($student, $class, $term, $maths);
@@ -65,7 +114,7 @@ it('builds bulletin data scoped to a single subject when the class has several',
     expect($bulletin['average'])->toBe(15.0)
         ->and($bulletin['evaluations'])->toHaveCount(1)
         ->and($bulletin['evaluations']->first()['title'])->toBe('Contrôle maths')
-        ->and($bulletin['generalAppreciation'])->toBe('Excellent en maths.');
+        ->and($bulletin['appreciation'])->toBe('Excellent en maths.');
 });
 
 it('downloads a single student bulletin as a PDF', function () {

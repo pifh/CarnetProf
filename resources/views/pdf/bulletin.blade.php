@@ -83,7 +83,7 @@
     @foreach ($bulletins as $bulletin)
         <div class="page">
             <div class="header">
-                <h1>Bulletin — {{ $bulletin['term']->label }}</h1>
+                <h1>Bulletin — {{ $bulletin['term']?->label ?? 'Année complète' }}</h1>
                 <div class="meta">
                     {{ $bulletin['student']->first_name }} {{ $bulletin['student']->last_name }}
                     — {{ $bulletin['schoolClass']->name }}
@@ -142,16 +142,11 @@
                 </tr>
             </table>
 
-            <h2>Appréciation générale</h2>
-            @if ($bulletin['generalAppreciation'])
-                <p class="appreciation">{{ $bulletin['generalAppreciation'] }}</p>
+            <h2>Appréciation</h2>
+            @if ($bulletin['appreciation'])
+                <p class="appreciation">{{ $bulletin['appreciation'] }}</p>
             @else
                 <p class="empty">Aucune appréciation rédigée.</p>
-            @endif
-
-            @if ($bulletin['disciplinaryAppreciation'])
-                <h2>Appréciation disciplinaire</h2>
-                <p class="appreciation">{{ $bulletin['disciplinaryAppreciation'] }}</p>
             @endif
         </div>
     @endforeach

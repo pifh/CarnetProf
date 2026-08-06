@@ -72,6 +72,11 @@ class Student extends Model
         return $this->belongsToMany(StudentSubgroup::class, 'student_student_subgroup');
     }
 
+    public function groupClasses(): BelongsToMany
+    {
+        return $this->belongsToMany(SchoolClass::class, 'school_class_student');
+    }
+
     public function seatingNextTo(): BelongsToMany
     {
         return $this->belongsToMany(Student::class, 'student_seating_pairs', 'student_id', 'related_student_id')

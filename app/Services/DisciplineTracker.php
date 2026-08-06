@@ -14,36 +14,40 @@ use Illuminate\Support\Collection;
  * DisciplineEntry ever logged, never touched) and a "trip" since the last
  * reset (DisciplineReset just moves the boundary forward — it never
  * deletes history, so a student's full list of dates per category stays
- * available in their file).
+ * available in their file). Everything is scoped per school class, so a
+ * student in both their real class and a groupe classe (e.g. NSI, pulling
+ * students from several classes) gets fully independent counters for each.
  */
 class DisciplineTracker
 {
-    public function logEntry(Student $student, string $category): DisciplineEntry
+    public function logEntry(Student $student, SchoolClass $schoolClass, string $category): DisciplineEntry
     {
         return DisciplineEntry::create([
             'student_id' => $student->id,
+            'school_class_id' => $schoolClass->id,
             'category' => $category,
             'occurred_at' => now()->toDateString(),
         ]);
     }
 
-    public function resetStudent(Student $student, string $category): void
+    public function resetStudent(Student $student, SchoolClass $schoolClass, string $category): void
     {
         $lastEntryId = DisciplineEntry::query()
             ->where('student_id', $student->id)
+            ->where('school_class_id', $schoolClass->id)
             ->where('category', $category)
             ->max('id');
 
         DisciplineReset::updateOrCreate(
-            ['student_id' => $student->id, 'category' => $category],
+            ['student_id' => $student->id, 'school_class_id' => $schoolClass->id, 'category' => $category],
             ['last_entry_id' => $lastEntryId],
         );
     }
 
     public function resetClass(SchoolClass $schoolClass, string $category): void
     {
-        $schoolClass->students()->where('is_archived', false)->get()
-            ->each(fn (Student $student) => $this->resetStudent($student, $category));
+        $schoolClass->allStudents()->where('is_archived', false)->get()
+            ->each(fn (Student $student) => $this->resetStudent($student, $schoolClass, $category));
     }
 
     /**
@@ -51,18 +55,20 @@ class DisciplineTracker
      */
     public function countsForClass(SchoolClass $schoolClass): Collection
     {
-        $studentIds = $schoolClass->students()->where('is_archived', false)->pluck('id');
+        $studentIds = $schoolClass->allStudents()->where('is_archived', false)->pluck('id');
 
         if ($studentIds->isEmpty()) {
             return collect();
         }
 
         $entries = DisciplineEntry::query()
+            ->where('school_class_id', $schoolClass->id)
             ->whereIn('student_id', $studentIds)
             ->get(['id', 'student_id', 'category'])
             ->groupBy(fn (DisciplineEntry $entry) => $entry->student_id.'|'.$entry->category);
 
         $resets = DisciplineReset::query()
+            ->where('school_class_id', $schoolClass->id)
             ->whereIn('student_id', $studentIds)
             ->get(['student_id', 'category', 'last_entry_id'])
             ->keyBy(fn (DisciplineReset $reset) => $reset->student_id.'|'.$reset->category);
@@ -78,19 +84,40 @@ class DisciplineTracker
     }
 
     /**
+     * Every DisciplineEntry for a student in this class, grouped by
+     * category — for showing the actual dates, not just the counts.
+     *
+     * @return Collection<string, Collection<int, DisciplineEntry>>
+     */
+    public function entriesForStudent(Student $student, SchoolClass $schoolClass): Collection
+    {
+        return DisciplineEntry::query()
+            ->where('student_id', $student->id)
+            ->where('school_class_id', $schoolClass->id)
+            ->orderByDesc('occurred_at')
+            ->get()
+            ->groupBy('category');
+    }
+
+    /**
      * @return array{total: int, trip: int}
      */
-    public function countsForStudent(Student $student, string $category): array
+    public function countsForStudent(Student $student, SchoolClass $schoolClass, string $category): array
     {
-        $total = DisciplineEntry::query()->where('student_id', $student->id)->where('category', $category)->count();
+        $total = DisciplineEntry::query()
+            ->where('student_id', $student->id)
+            ->where('school_class_id', $schoolClass->id)
+            ->where('category', $category)
+            ->count();
 
         $lastEntryId = DisciplineReset::query()
             ->where('student_id', $student->id)
+            ->where('school_class_id', $schoolClass->id)
             ->where('category', $category)
             ->value('last_entry_id');
 
         $trip = $lastEntryId
-            ? DisciplineEntry::query()->where('student_id', $student->id)->where('category', $category)->where('id', '>', $lastEntryId)->count()
+            ? DisciplineEntry::query()->where('student_id', $student->id)->where('school_class_id', $schoolClass->id)->where('category', $category)->where('id', '>', $lastEntryId)->count()
             : $total;
 
         return ['total' => $total, 'trip' => $trip];

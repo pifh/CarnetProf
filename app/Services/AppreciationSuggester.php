@@ -13,10 +13,11 @@ class AppreciationSuggester
 
     /**
      * Suggest a French appreciation text based on the student's average for
-     * the given term, adjusted for the trend versus the previous term.
-     * Returns null when there is no grade to base a suggestion on.
+     * the given term (or the full year when $term is null), adjusted for the
+     * trend versus the previous term. Returns null when there is no grade to
+     * base a suggestion on.
      */
-    public function suggest(Student $student, SchoolClass $schoolClass, Term $term, ?Subject $subject = null): ?string
+    public function suggest(Student $student, SchoolClass $schoolClass, ?Term $term = null, ?Subject $subject = null): ?string
     {
         $average = $this->gradeCalculator->studentAverage($student, $schoolClass, $term, $subject);
 
@@ -42,11 +43,16 @@ class AppreciationSuggester
         };
     }
 
-    private function trendSentence(Student $student, SchoolClass $schoolClass, Term $term, float $average, ?Subject $subject = null): string
+    private function trendSentence(Student $student, SchoolClass $schoolClass, ?Term $term, float $average, ?Subject $subject = null): string
     {
+        if (! $term) {
+            return '';
+        }
+
         $previousTerm = Term::query()
             ->where('user_id', $term->user_id)
             ->where('school_year', $term->school_year)
+            ->where('parent_id', $term->parent_id)
             ->where('position', '<', $term->position)
             ->orderByDesc('position')
             ->first();

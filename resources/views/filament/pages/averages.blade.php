@@ -31,7 +31,7 @@
                     <x-filament::input.select wire:model.live="termId">
                         <option value="">Année complète</option>
                         @foreach ($this->terms as $term)
-                            <option value="{{ $term->id }}">{{ $term->label }}</option>
+                            <option value="{{ $term->id }}">{{ $term->parent_id ? '— ' : '' }}{{ $term->label }}</option>
                         @endforeach
                     </x-filament::input.select>
                 </x-filament::input.wrapper>
@@ -46,11 +46,9 @@
                 Exporter CSV
             </x-filament::button>
 
-            @if ($termId)
-                <x-filament::button color="gray" wire:click="downloadClassBulletins">
-                    Bulletins de la classe (PDF)
-                </x-filament::button>
-            @endif
+            <x-filament::button color="gray" wire:click="downloadClassBulletins">
+                Bulletins de la classe (PDF)
+            </x-filament::button>
         </div>
     </x-filament::section>
 
@@ -71,9 +69,7 @@
                             @endif
                             <th class="p-2">Élève</th>
                             <th class="p-2">Moyenne</th>
-                            @if ($termId)
-                                <th class="p-2"></th>
-                            @endif
+                            <th class="p-2"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -86,13 +82,11 @@
                                 <td class="p-2">
                                     {{ $row['average'] !== null ? number_format($row['average'], 2).'/20' : 'Aucune note' }}
                                 </td>
-                                @if ($termId)
-                                    <td class="p-2">
-                                        <x-filament::button size="xs" color="gray" wire:click="downloadBulletin({{ $row['student']->id }})">
-                                            Bulletin (PDF)
-                                        </x-filament::button>
-                                    </td>
-                                @endif
+                                <td class="p-2">
+                                    <x-filament::button size="xs" color="gray" wire:click="downloadBulletin({{ $row['student']->id }})">
+                                        Bulletin (PDF)
+                                    </x-filament::button>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

@@ -181,7 +181,7 @@ class GroupGenerator extends Page
             return collect();
         }
 
-        return $schoolClass->students()
+        return $schoolClass->allStudents()
             ->where('is_archived', false)
             ->orderBy('last_name')
             ->orderBy('first_name')

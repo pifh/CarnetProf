@@ -30,9 +30,27 @@ it('lets a teacher write and save an appreciation', function () {
 
     expect($appreciation)->not->toBeNull()
         ->and($appreciation->content)->toBe('Bon trimestre, continuez ainsi.')
-        ->and($appreciation->type)->toBe('general')
         ->and($appreciation->is_draft)->toBeTrue()
         ->and($appreciation->user_id)->toBe($teacher->id);
+});
+
+it('lets a teacher write a year-level appreciation when no term is selected (année complète)', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $this->actingAs($teacher);
+
+    Livewire::test(Appreciations::class)
+        ->set('schoolClassId', $class->id)
+        ->set('termId', null)
+        ->call('updateContent', $student->id, 'Belle année scolaire.');
+
+    $appreciation = Appreciation::query()->where('student_id', $student->id)->first();
+
+    expect($appreciation)->not->toBeNull()
+        ->and($appreciation->term_id)->toBeNull()
+        ->and($appreciation->content)->toBe('Belle année scolaire.');
 });
 
 it('toggles an appreciation between draft and final', function () {

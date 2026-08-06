@@ -170,7 +170,7 @@ class GradeTracking extends Page
 
         $subject = $this->getSelectedSubject();
         $calculator = app(GradeCalculator::class);
-        $students = $schoolClass->students()
+        $students = $schoolClass->allStudents()
             ->where('is_archived', false)
             ->orderBy('last_name')
             ->orderBy('first_name')

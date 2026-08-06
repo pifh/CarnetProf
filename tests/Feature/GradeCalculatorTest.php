@@ -98,6 +98,25 @@ it('scopes the average to a single term or falls back to the whole year', functi
         ->and($calculator->studentAverage($student, $class))->toBe(15.0);
 });
 
+it("includes a période's grades in its parent trimestre's average, while the période itself stays isolated", function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $trimestre = Term::factory()->for($teacher)->create(['label' => 'Trimestre 1', 'position' => 1]);
+    $periode = Term::factory()->for($teacher)->create(['label' => 'Période 1', 'position' => 1, 'parent_id' => $trimestre->id]);
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+
+    $evalTrimestre = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($trimestre)->create(['max_score' => 20]);
+    makeGrade($student, $evalTrimestre, 10);
+
+    $evalPeriode = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($periode)->create(['max_score' => 20]);
+    makeGrade($student, $evalPeriode, 20);
+
+    $calculator = app(GradeCalculator::class);
+
+    expect($calculator->studentAverage($student, $class, $periode))->toBe(20.0)
+        ->and($calculator->studentAverage($student, $class, $trimestre))->toBe(15.0);
+});
+
 it('averages every active student to compute the class average, ignoring students with no grade', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();

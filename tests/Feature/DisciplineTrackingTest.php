@@ -91,9 +91,9 @@ it("lists all dates for a student's history, grouped by category", function () {
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $this->actingAs($teacher);
 
-    DisciplineEntry::factory()->for($teacher)->for($student)->create(['category' => 'oubli_materiel', 'occurred_at' => '2026-09-10']);
-    DisciplineEntry::factory()->for($teacher)->for($student)->create(['category' => 'oubli_materiel', 'occurred_at' => '2026-09-17']);
-    DisciplineEntry::factory()->for($teacher)->for($student)->create(['category' => 'bavardage', 'occurred_at' => '2026-09-12']);
+    DisciplineEntry::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->create(['category' => 'oubli_materiel', 'occurred_at' => '2026-09-10']);
+    DisciplineEntry::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->create(['category' => 'oubli_materiel', 'occurred_at' => '2026-09-17']);
+    DisciplineEntry::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->create(['category' => 'bavardage', 'occurred_at' => '2026-09-12']);
 
     $component = Livewire::test(DisciplineTracking::class)->call('showHistory', $student->id);
 
@@ -110,8 +110,8 @@ it('deletes a single entry, correcting a mis-click without touching the others',
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $this->actingAs($teacher);
 
-    $toDelete = DisciplineEntry::factory()->for($teacher)->for($student)->create(['category' => 'oubli_materiel']);
-    DisciplineEntry::factory()->for($teacher)->for($student)->create(['category' => 'oubli_materiel']);
+    $toDelete = DisciplineEntry::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->create(['category' => 'oubli_materiel']);
+    DisciplineEntry::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->create(['category' => 'oubli_materiel']);
 
     $component = Livewire::test(DisciplineTracking::class)->call('deleteEntry', $toDelete->id);
 
@@ -124,7 +124,7 @@ it("refuses to delete another teacher's entry", function () {
     $otherTeacher = User::factory()->create();
     $otherClass = SchoolClass::factory()->for($otherTeacher)->create();
     $otherStudent = Student::factory()->for($otherTeacher)->for($otherClass, 'schoolClass')->create();
-    $otherEntry = DisciplineEntry::factory()->for($otherTeacher)->for($otherStudent)->create();
+    $otherEntry = DisciplineEntry::factory()->for($otherTeacher)->for($otherStudent)->for($otherClass, 'schoolClass')->create();
 
     $this->actingAs($teacher);
 

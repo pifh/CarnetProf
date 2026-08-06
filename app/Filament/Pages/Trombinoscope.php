@@ -80,7 +80,7 @@ class Trombinoscope extends Page
             return collect();
         }
 
-        return $schoolClass->students()
+        return $schoolClass->allStudents()
             ->where('is_archived', false)
             ->with('currentPhoto')
             ->orderBy('last_name')

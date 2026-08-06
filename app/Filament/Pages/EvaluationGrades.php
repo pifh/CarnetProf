@@ -46,7 +46,7 @@ class EvaluationGrades extends Page
     {
         $grades = $this->evaluation->grades()->get()->keyBy('student_id');
 
-        return $this->evaluation->schoolClass->students()
+        return $this->evaluation->schoolClass->allStudents()
             ->where('is_archived', false)
             ->orderBy('last_name')
             ->orderBy('first_name')

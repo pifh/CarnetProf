@@ -21,23 +21,25 @@ class BulletinGenerator
      * the class has more than one. Only published appreciations are
      * included — drafts and private teacher notes never leave the app.
      *
+     * A null $term produces a full-year bulletin: every evaluation across
+     * every term, and the year-level appreciation (term_id null).
+     *
      * @return array{
      *     student: Student,
      *     schoolClass: SchoolClass,
      *     subject: ?Subject,
-     *     term: Term,
+     *     term: ?Term,
      *     evaluations: Collection<int, array{title: string, exam_date: ?Carbon, score: ?float, max_score: float, coefficient: float, status: string}>,
      *     average: ?float,
      *     classAverage: ?float,
-     *     generalAppreciation: ?string,
-     *     disciplinaryAppreciation: ?string,
+     *     appreciation: ?string,
      * }
      */
-    public function build(Student $student, SchoolClass $schoolClass, Term $term, ?Subject $subject = null): array
+    public function build(Student $student, SchoolClass $schoolClass, ?Term $term = null, ?Subject $subject = null): array
     {
         $evaluations = Evaluation::query()
             ->where('school_class_id', $schoolClass->id)
-            ->where('term_id', $term->id)
+            ->when($term, fn ($query) => $query->whereIn('term_id', $term->aggregationTermIds()))
             ->when($subject, fn ($query) => $query->where('subject_id', $subject->id))
             ->with(['grades' => fn ($query) => $query->where('student_id', $student->id)])
             ->orderBy('exam_date')
@@ -55,14 +57,13 @@ class BulletinGenerator
                 ];
             });
 
-        $appreciations = Appreciation::query()
+        $appreciation = Appreciation::query()
             ->where('student_id', $student->id)
             ->where('school_class_id', $schoolClass->id)
             ->where('subject_id', $subject?->id)
-            ->where('term_id', $term->id)
+            ->where('term_id', $term?->id)
             ->where('is_draft', false)
-            ->get()
-            ->keyBy('type');
+            ->first();
 
         return [
             'student' => $student,
@@ -72,8 +73,7 @@ class BulletinGenerator
             'evaluations' => $evaluations,
             'average' => $this->gradeCalculator->studentAverage($student, $schoolClass, $term, $subject),
             'classAverage' => $this->gradeCalculator->classAverage($schoolClass, $term, $subject),
-            'generalAppreciation' => $appreciations->get('general')?->content,
-            'disciplinaryAppreciation' => $appreciations->get('disciplinary')?->content,
+            'appreciation' => $appreciation?->content,
         ];
     }
 }

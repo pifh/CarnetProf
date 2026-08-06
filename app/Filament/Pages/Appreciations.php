@@ -33,8 +33,6 @@ class Appreciations extends Page
 
     public ?int $termId = null;
 
-    public string $type = 'general';
-
     public function mount(): void
     {
         $this->schoolClassId = SchoolClass::query()
@@ -92,10 +90,7 @@ class Appreciations extends Page
      */
     public function getTermsProperty(): Collection
     {
-        return Term::query()
-            ->where('user_id', Auth::id())
-            ->orderBy('position')
-            ->get();
+        return Term::hierarchicalForTeacher();
     }
 
     /**
@@ -115,21 +110,19 @@ class Appreciations extends Page
     public function getStudentsProperty(): Collection
     {
         $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
-        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
 
-        if (! $schoolClass || ! $term) {
+        if (! $schoolClass) {
             return collect();
         }
 
         $appreciations = Appreciation::query()
             ->where('school_class_id', $schoolClass->id)
             ->where('subject_id', $this->subjectId)
-            ->where('term_id', $term->id)
-            ->where('type', $this->type)
+            ->where('term_id', $this->termId)
             ->get()
             ->keyBy('student_id');
 
-        return $schoolClass->students()
+        return $schoolClass->allStudents()
             ->where('is_archived', false)
             ->orderBy('last_name')
             ->orderBy('first_name')
@@ -168,11 +161,11 @@ class Appreciations extends Page
     public function suggest(int $studentId): void
     {
         $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
-        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
+        $term = $this->termId ? $this->getTermsProperty()->firstWhere('id', $this->termId) : null;
         $subject = $this->subjectId ? $this->getSubjectsProperty()->firstWhere('id', $this->subjectId) : null;
         $student = $this->getStudentsProperty()->firstWhere('id', $studentId);
 
-        if (! $schoolClass || ! $term || ! $student) {
+        if (! $schoolClass || ! $student) {
             return;
         }
 
@@ -207,9 +200,8 @@ class Appreciations extends Page
     private function findAppreciation(int $studentId): ?Appreciation
     {
         $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
-        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
 
-        if (! $schoolClass || ! $term) {
+        if (! $schoolClass) {
             return null;
         }
 
@@ -217,17 +209,15 @@ class Appreciations extends Page
             ->where('student_id', $studentId)
             ->where('school_class_id', $schoolClass->id)
             ->where('subject_id', $this->subjectId)
-            ->where('term_id', $term->id)
-            ->where('type', $this->type)
+            ->where('term_id', $this->termId)
             ->first();
     }
 
     private function findOrNewAppreciation(int $studentId): ?Appreciation
     {
         $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
-        $term = $this->getTermsProperty()->firstWhere('id', $this->termId);
 
-        if (! $schoolClass || ! $term) {
+        if (! $schoolClass) {
             return null;
         }
 
@@ -235,8 +225,7 @@ class Appreciations extends Page
             'student_id' => $studentId,
             'school_class_id' => $schoolClass->id,
             'subject_id' => $this->subjectId,
-            'term_id' => $term->id,
-            'type' => $this->type,
+            'term_id' => $this->termId,
         ]);
         $appreciation->user_id = Auth::id();
 

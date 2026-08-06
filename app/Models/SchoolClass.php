@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTeacher;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -32,6 +33,27 @@ class SchoolClass extends Model
     public function students(): HasMany
     {
         return $this->hasMany(Student::class);
+    }
+
+    public function groupClassMembers(): BelongsToMany
+    {
+        return $this->belongsToMany(Student::class, 'school_class_student');
+    }
+
+    /**
+     * Every student attending this class: those for whom it's their real/primary
+     * class, plus those attached as secondary "groupe classe" members (e.g. an
+     * NSI group pulling students from several different real classes). Returns
+     * a Builder so it's a drop-in replacement for students() wherever teaching
+     * features (grades, cahier de texte, discipline...) list "this class's kids".
+     */
+    public function allStudents(): Builder
+    {
+        return Student::query()->where(
+            fn (Builder $query) => $query
+                ->where('school_class_id', $this->id)
+                ->orWhereHas('groupClasses', fn (Builder $q) => $q->whereKey($this->id))
+        );
     }
 
     public function subgroups(): HasMany

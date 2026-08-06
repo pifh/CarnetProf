@@ -15,9 +15,10 @@ it("logs an entry stamped with today's date and the acting teacher", function ()
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $this->actingAs($teacher);
 
-    $entry = app(DisciplineTracker::class)->logEntry($student, 'oubli_materiel');
+    $entry = app(DisciplineTracker::class)->logEntry($student, $class, 'oubli_materiel');
 
     expect($entry->student_id)->toBe($student->id)
+        ->and($entry->school_class_id)->toBe($class->id)
         ->and($entry->category)->toBe('oubli_materiel')
         ->and($entry->occurred_at->format('Y-m-d'))->toBe('2026-09-15')
         ->and($entry->user_id)->toBe($teacher->id);
@@ -32,10 +33,10 @@ it('counts total and trip identically before any reset', function () {
     $this->actingAs($teacher);
 
     $tracker = app(DisciplineTracker::class);
-    $tracker->logEntry($student, 'oubli_materiel');
-    $tracker->logEntry($student, 'oubli_materiel');
+    $tracker->logEntry($student, $class, 'oubli_materiel');
+    $tracker->logEntry($student, $class, 'oubli_materiel');
 
-    $counts = $tracker->countsForStudent($student, 'oubli_materiel');
+    $counts = $tracker->countsForStudent($student, $class, 'oubli_materiel');
 
     expect($counts)->toBe(['total' => 2, 'trip' => 2]);
 });
@@ -47,16 +48,16 @@ it('resets the trip counter without touching the lifetime total', function () {
     $this->actingAs($teacher);
 
     $tracker = app(DisciplineTracker::class);
-    $tracker->logEntry($student, 'oubli_materiel');
-    $tracker->logEntry($student, 'oubli_materiel');
+    $tracker->logEntry($student, $class, 'oubli_materiel');
+    $tracker->logEntry($student, $class, 'oubli_materiel');
 
-    $tracker->resetStudent($student, 'oubli_materiel');
-    $counts = $tracker->countsForStudent($student, 'oubli_materiel');
+    $tracker->resetStudent($student, $class, 'oubli_materiel');
+    $counts = $tracker->countsForStudent($student, $class, 'oubli_materiel');
 
     expect($counts)->toBe(['total' => 2, 'trip' => 0]);
 
-    $tracker->logEntry($student, 'oubli_materiel');
-    $counts = $tracker->countsForStudent($student, 'oubli_materiel');
+    $tracker->logEntry($student, $class, 'oubli_materiel');
+    $counts = $tracker->countsForStudent($student, $class, 'oubli_materiel');
 
     expect($counts)->toBe(['total' => 3, 'trip' => 1]);
 });
@@ -68,13 +69,13 @@ it('only resets the category asked for, leaving others untouched', function () {
     $this->actingAs($teacher);
 
     $tracker = app(DisciplineTracker::class);
-    $tracker->logEntry($student, 'oubli_materiel');
-    $tracker->logEntry($student, 'bavardage');
+    $tracker->logEntry($student, $class, 'oubli_materiel');
+    $tracker->logEntry($student, $class, 'bavardage');
 
-    $tracker->resetStudent($student, 'oubli_materiel');
+    $tracker->resetStudent($student, $class, 'oubli_materiel');
 
-    expect($tracker->countsForStudent($student, 'oubli_materiel'))->toBe(['total' => 1, 'trip' => 0])
-        ->and($tracker->countsForStudent($student, 'bavardage'))->toBe(['total' => 1, 'trip' => 1]);
+    expect($tracker->countsForStudent($student, $class, 'oubli_materiel'))->toBe(['total' => 1, 'trip' => 0])
+        ->and($tracker->countsForStudent($student, $class, 'bavardage'))->toBe(['total' => 1, 'trip' => 1]);
 });
 
 it('resets a category for every active student in the class, leaving other classes alone', function () {
@@ -90,16 +91,17 @@ it('resets a category for every active student in the class, leaving other class
     $this->actingAs($teacher);
     $tracker = app(DisciplineTracker::class);
 
-    foreach ([$studentA, $studentB, $archivedStudent, $studentElsewhere] as $student) {
-        $tracker->logEntry($student, 'bavardage');
-    }
+    $tracker->logEntry($studentA, $class, 'bavardage');
+    $tracker->logEntry($studentB, $class, 'bavardage');
+    $tracker->logEntry($archivedStudent, $class, 'bavardage');
+    $tracker->logEntry($studentElsewhere, $otherClass, 'bavardage');
 
     $tracker->resetClass($class, 'bavardage');
 
-    expect($tracker->countsForStudent($studentA, 'bavardage')['trip'])->toBe(0)
-        ->and($tracker->countsForStudent($studentB, 'bavardage')['trip'])->toBe(0)
-        ->and($tracker->countsForStudent($archivedStudent, 'bavardage')['trip'])->toBe(1)
-        ->and($tracker->countsForStudent($studentElsewhere, 'bavardage')['trip'])->toBe(1);
+    expect($tracker->countsForStudent($studentA, $class, 'bavardage')['trip'])->toBe(0)
+        ->and($tracker->countsForStudent($studentB, $class, 'bavardage')['trip'])->toBe(0)
+        ->and($tracker->countsForStudent($archivedStudent, $class, 'bavardage')['trip'])->toBe(1)
+        ->and($tracker->countsForStudent($studentElsewhere, $otherClass, 'bavardage')['trip'])->toBe(1);
 });
 
 it('computes counts for a whole class in one pass, keyed by student and category', function () {
@@ -110,15 +112,34 @@ it('computes counts for a whole class in one pass, keyed by student and category
     $this->actingAs($teacher);
 
     $tracker = app(DisciplineTracker::class);
-    $tracker->logEntry($studentA, 'oubli_materiel');
-    $tracker->logEntry($studentA, 'oubli_materiel');
-    $tracker->logEntry($studentB, 'discipline');
+    $tracker->logEntry($studentA, $class, 'oubli_materiel');
+    $tracker->logEntry($studentA, $class, 'oubli_materiel');
+    $tracker->logEntry($studentB, $class, 'discipline');
 
     $counts = $tracker->countsForClass($class);
 
     expect($counts->get($studentA->id.'|oubli_materiel'))->toBe(['total' => 2, 'trip' => 2])
         ->and($counts->get($studentB->id.'|discipline'))->toBe(['total' => 1, 'trip' => 1])
         ->and($counts->has($studentA->id.'|bavardage'))->toBeFalse();
+});
+
+it("keeps a student's counters independent between their real class and a groupe classe", function () {
+    $teacher = User::factory()->create();
+    $realClass = SchoolClass::factory()->for($teacher)->create();
+    $groupClass = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($realClass, 'schoolClass')->create();
+    $student->groupClasses()->attach($groupClass);
+    $this->actingAs($teacher);
+
+    $tracker = app(DisciplineTracker::class);
+    $tracker->logEntry($student, $realClass, 'bavardage');
+    $tracker->logEntry($student, $groupClass, 'bavardage');
+    $tracker->logEntry($student, $groupClass, 'bavardage');
+
+    $tracker->resetStudent($student, $groupClass, 'bavardage');
+
+    expect($tracker->countsForStudent($student, $realClass, 'bavardage'))->toBe(['total' => 1, 'trip' => 1])
+        ->and($tracker->countsForStudent($student, $groupClass, 'bavardage'))->toBe(['total' => 2, 'trip' => 0]);
 });
 
 it('scopes entries and resets to the acting teacher only', function () {
@@ -128,8 +149,8 @@ it('scopes entries and resets to the acting teacher only', function () {
     $studentA = Student::factory()->for($teacherA)->for($classA, 'schoolClass')->create();
 
     $this->actingAs($teacherA);
-    $entry = app(DisciplineTracker::class)->logEntry($studentA, 'oubli_materiel');
-    app(DisciplineTracker::class)->resetStudent($studentA, 'oubli_materiel');
+    $entry = app(DisciplineTracker::class)->logEntry($studentA, $classA, 'oubli_materiel');
+    app(DisciplineTracker::class)->resetStudent($studentA, $classA, 'oubli_materiel');
 
     $this->actingAs($teacherB);
 

@@ -81,7 +81,7 @@ class DisciplineTracking extends Page
             return collect();
         }
 
-        return $schoolClass->students()
+        return $schoolClass->allStudents()
             ->where('is_archived', false)
             ->orderBy('last_name')
             ->orderBy('first_name')
@@ -110,15 +110,17 @@ class DisciplineTracking extends Page
     public function log(int $studentId, string $category): void
     {
         $student = Student::query()->where('user_id', Auth::id())->findOrFail($studentId);
+        $schoolClass = SchoolClass::query()->where('user_id', Auth::id())->findOrFail($this->schoolClassId);
 
-        app(DisciplineTracker::class)->logEntry($student, $category);
+        app(DisciplineTracker::class)->logEntry($student, $schoolClass, $category);
     }
 
     public function resetStudent(int $studentId, string $category): void
     {
         $student = Student::query()->where('user_id', Auth::id())->findOrFail($studentId);
+        $schoolClass = SchoolClass::query()->where('user_id', Auth::id())->findOrFail($this->schoolClassId);
 
-        app(DisciplineTracker::class)->resetStudent($student, $category);
+        app(DisciplineTracker::class)->resetStudent($student, $schoolClass, $category);
 
         Notification::make()->title('Compteur réinitialisé pour '.$student->full_name.'.')->success()->send();
     }
@@ -173,7 +175,7 @@ class DisciplineTracking extends Page
 
         return Student::query()
             ->where('user_id', Auth::id())
-            ->with('disciplineEntries')
+            ->with(['disciplineEntries' => fn ($query) => $query->where('school_class_id', $this->schoolClassId)])
             ->find($this->historyStudentId);
     }
 

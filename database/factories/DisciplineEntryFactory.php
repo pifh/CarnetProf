@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\DisciplineEntry;
+use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\DisciplineCategories;
@@ -23,6 +24,7 @@ class DisciplineEntryFactory extends Factory
         return [
             'user_id' => User::factory(),
             'student_id' => Student::factory(),
+            'school_class_id' => SchoolClass::factory(),
             'category' => fake()->randomElement(DisciplineCategories::ALL),
             'occurred_at' => fake()->dateTimeBetween('-6 months', 'now')->format('Y-m-d'),
         ];
