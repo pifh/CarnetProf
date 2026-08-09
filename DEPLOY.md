@@ -1,9 +1,12 @@
 # Déploiement (CloudPanel)
 
 Ce document part du principe que CloudPanel est déjà installé sur le VPS de
-production et que le domaine pointe vers son IP. Le dépôt est public sur
-GitHub (`https://github.com/pifh/CarnetProf`), aucune clé de déploiement
-n'est nécessaire pour le `git pull`.
+production et que le domaine pointe vers son IP. Le dépôt GitHub
+(`https://github.com/pifh/CarnetProf`) est **privé** : `git clone`/`git
+pull` se font en SSH avec une clé de déploiement dédiée (lecture seule),
+provisionnée automatiquement par `deploy/install.sh` la première fois (voir
+étape 2). Aucun mot de passe ni jeton GitHub à saisir ou à stocker sur le
+serveur.
 
 ## 1. Créer le site dans CloudPanel
 
@@ -28,11 +31,19 @@ un script.
 
 ## 2. Installation applicative
 
-En SSH, en tant qu'utilisateur du site :
+Le dépôt étant privé, `deploy/install.sh` ne peut pas être récupéré par un
+`curl` anonyme sur GitHub — copiez-le depuis votre machine locale avant de
+le lancer :
+
+```bash
+# Depuis votre machine locale, dans le dépôt :
+scp deploy/install.sh <site-user>@<serveur>:/home/<site-user>/htdocs/<domaine>/install.sh
+```
+
+Puis en SSH, en tant qu'utilisateur du site :
 
 ```bash
 cd /home/<site-user>/htdocs/<domaine>
-curl -fsSL https://raw.githubusercontent.com/pifh/CarnetProf/main/deploy/install.sh -o install.sh
 chmod +x install.sh
 ./install.sh --path . --url https://<domaine> \
   --db-database <db> --db-username <user>
@@ -41,11 +52,18 @@ chmod +x install.sh
 (Le mot de passe de la base est demandé de façon interactive si vous ne
 passez pas `--db-password`.)
 
-Le script clone le dépôt, configure `.env` (`APP_ENV=production`,
-`APP_DEBUG=false`, connexion DB), installe les dépendances PHP et
-front-end, génère la clé d'application, exécute les migrations et
-optimise les caches. Voir la sortie du script pour les étapes manuelles
-restantes (cron, premier compte superadmin).
+Le dépôt étant privé, le script commence par générer une clé SSH de
+déploiement dédiée (`~/.ssh/carnetprof_deploy_key`, lecture seule) et
+affiche la clé publique à ajouter dans **GitHub → Settings → Deploy keys**
+du dépôt (`https://github.com/pifh/CarnetProf/settings/keys`) — laissez
+la case **Allow write access** décochée, il n'a besoin que de lire. Le
+script attend une confirmation avant de continuer.
+
+Il configure ensuite `.env` (`APP_ENV=production`, `APP_DEBUG=false`,
+connexion DB), installe les dépendances PHP et front-end, génère la clé
+d'application, exécute les migrations et optimise les caches. Voir la
+sortie du script pour les étapes manuelles restantes (cron, premier compte
+superadmin).
 
 ## 3. Planificateur (cron)
 
@@ -87,6 +105,15 @@ DEPLOY_NPM_BIN=/home/<site-user>/.nvm/versions/node/vXX/bin/npm
 ```
 
 (`which composer` / `which npm` en SSH pour les trouver.)
+
+Le dépôt étant privé, `git fetch`/`git pull` (déclenchés par le bouton
+« Mettre à jour » comme par `deploy/update.sh` en SSH) ont besoin de la
+clé de déploiement configurée à l'étape 2. Le processus PHP-FPM qui exécute
+la page admin doit voir le même `$HOME` (et donc le même `~/.ssh/config`)
+que l'utilisateur SSH du site — c'est le cas par défaut sous CloudPanel
+(le pool PHP-FPM tourne sous cet utilisateur), mais si le bouton échoue
+avec une erreur d'authentification Git alors que `deploy/update.sh` marche
+en SSH, vérifiez `env[HOME]` dans le pool PHP-FPM du site.
 
 ## 6. Mises à jour ultérieures
 

@@ -17,10 +17,15 @@
 #
 # Prompts interactively for anything not passed as a flag (DB password,
 # mail settings are left for you to fill in .env by hand afterwards).
+#
+# Dépôt privé : le dépôt GitHub est privé, donc un clone/pull anonyme sur
+# l'URL HTTPS échouera. Ce script clone en SSH par défaut et provisionne
+# une clé de déploiement dédiée (lecture seule) pour l'utilisateur du site
+# — voir setup_deploy_key() ci-dessous et DEPLOY.md.
 
 set -euo pipefail
 
-REPO="https://github.com/pifh/CarnetProf.git"
+REPO="git@github.com:pifh/CarnetProf.git"
 BRANCH="main"
 TARGET_PATH="$(pwd)"
 APP_URL=""
@@ -29,6 +34,7 @@ DB_PORT="3306"
 DB_DATABASE=""
 DB_USERNAME=""
 DB_PASSWORD=""
+SSH_KEY_PATH="$HOME/.ssh/carnetprof_deploy_key"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -41,6 +47,7 @@ while [[ $# -gt 0 ]]; do
         --db-database) DB_DATABASE="$2"; shift 2 ;;
         --db-username) DB_USERNAME="$2"; shift 2 ;;
         --db-password) DB_PASSWORD="$2"; shift 2 ;;
+        --ssh-key-path) SSH_KEY_PATH="$2"; shift 2 ;;
         *) echo "Option inconnue : $1"; exit 1 ;;
     esac
 done
@@ -48,6 +55,47 @@ done
 for bin in git composer npm php; do
     command -v "$bin" >/dev/null 2>&1 || { echo "Erreur : '$bin' est introuvable dans le PATH."; exit 1; }
 done
+
+# Ne provisionne une clé de déploiement que si on clone réellement en SSH
+# (git@host:owner/repo.git) — inutile si --repo pointe sur un dépôt HTTPS
+# public ou déjà accessible autrement (ex. token déjà configuré).
+setup_deploy_key() {
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+
+    if [[ ! -f "$SSH_KEY_PATH" ]]; then
+        echo "==> Génération d'une clé de déploiement SSH dédiée (${SSH_KEY_PATH})"
+        ssh-keygen -t ed25519 -N "" -C "carnetprof-deploy" -f "$SSH_KEY_PATH" -q
+    fi
+
+    if ! grep -q "^github.com " "$HOME/.ssh/known_hosts" 2>/dev/null; then
+        echo "==> Ajout de la clé d'hôte GitHub à known_hosts"
+        ssh-keyscan -t ed25519 github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null
+    fi
+
+    if ! grep -q "^Host github.com$" "$HOME/.ssh/config" 2>/dev/null; then
+        echo "==> Configuration de ~/.ssh/config pour utiliser cette clé avec GitHub"
+        {
+            echo "Host github.com"
+            echo "    IdentityFile ${SSH_KEY_PATH}"
+            echo "    IdentitiesOnly yes"
+        } >> "$HOME/.ssh/config"
+        chmod 600 "$HOME/.ssh/config"
+    fi
+
+    echo ""
+    echo "==> Le dépôt GitHub est privé : ajoutez cette clé publique comme"
+    echo "    « Deploy key » (lecture seule, sans accès en écriture) sur"
+    echo "    https://github.com/pifh/CarnetProf/settings/keys avant de continuer :"
+    echo ""
+    cat "${SSH_KEY_PATH}.pub"
+    echo ""
+    read -rp "Appuyez sur Entrée une fois la clé ajoutée sur GitHub... " _
+}
+
+if [[ "$REPO" == git@* ]]; then
+    setup_deploy_key
+fi
 
 [[ -n "$APP_URL" ]] || { read -rp "URL du site (ex. https://carnetprof.example.com) : " APP_URL; }
 [[ -n "$DB_DATABASE" ]] || { read -rp "Nom de la base de données : " DB_DATABASE; }

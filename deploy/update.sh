@@ -8,6 +8,15 @@
 # fails loudly. `set -e` means the first failing step aborts the script —
 # on purpose, since "up" not running again leaves the site in maintenance
 # mode rather than serving a half-updated app.
+#
+# The GitHub repo is private, so `git pull` here relies on the "origin"
+# remote already being an SSH URL with a passphrase-less deploy key
+# configured for this system user (set up once by deploy/install.sh — see
+# DEPLOY.md). When triggered from the "Mises à jour" admin page, this runs
+# as a PHP-FPM child process: it inherits that user's $HOME (and therefore
+# ~/.ssh/config) only if the PHP-FPM pool's env[HOME] matches — worth
+# checking first if the button fails with a git/SSH error that the
+# SSH-invoked script doesn't reproduce.
 
 set -euo pipefail
 
