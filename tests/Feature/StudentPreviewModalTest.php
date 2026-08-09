@@ -7,6 +7,7 @@ use App\Filament\Widgets\TodaysBirthdays;
 use App\Livewire\StudentPreviewModal;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -76,6 +77,7 @@ it('dispatches open-student-preview when a student\'s name is clicked on the Tro
 it('dispatches open-student-preview when a student row is clicked on the grade tracking roster', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
     $this->actingAs($teacher);

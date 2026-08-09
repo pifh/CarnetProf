@@ -20,7 +20,11 @@ class SubjectFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'name' => fake()->randomElement(['Mathématiques', 'Français', 'Histoire-Géographie', 'Anglais', 'SVT', 'Physique-Chimie', 'EPS']),
+            // Suffixed with a random number: the base names are a small fixed
+            // pool, and (user_id, name) is unique in the database — without a
+            // disambiguator, two subjects for the same teacher collide often
+            // enough to make tests that create several flaky.
+            'name' => fake()->randomElement(['Mathématiques', 'Français', 'Histoire-Géographie', 'Anglais', 'SVT', 'Physique-Chimie', 'EPS']).' '.fake()->numberBetween(1, 999999),
             'color' => fake()->hexColor(),
         ];
     }

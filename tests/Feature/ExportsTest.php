@@ -79,6 +79,7 @@ it('builds a full-year bulletin covering every term when no term is passed', fun
 it('downloads a full-year bulletin PDF when no period is selected on the Moyennes page', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
     $this->actingAs($teacher);
@@ -120,6 +121,7 @@ it('builds bulletin data scoped to a single subject when the class has several',
 it('downloads a single student bulletin as a PDF', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
@@ -153,6 +155,7 @@ it("refuses to download a bulletin for another teacher's student", function () {
 it('downloads a combined PDF of bulletins for the whole class', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $term = Term::factory()->for($teacher)->create();
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(2)->create();
 
@@ -168,9 +171,11 @@ it('downloads a combined PDF of bulletins for the whole class', function () {
 it('exports the averages table as a CSV file', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create(['last_name' => 'Aaa', 'first_name' => 'Bob']);
-    $evaluation = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['max_score' => 20]);
+    $evaluation = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['max_score' => 20]);
     Grade::factory()->for($teacher)->for($evaluation)->for($student)->create(['score' => 10, 'status' => 'graded']);
 
     $this->actingAs($teacher);

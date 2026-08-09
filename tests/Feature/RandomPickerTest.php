@@ -47,6 +47,7 @@ it('refuses to create a tirage without a name', function () {
 it('picks a student and records the draw against the open session', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
     $this->actingAs($teacher);
@@ -84,6 +85,7 @@ it('does not pick anything before a tirage has been created or opened', function
 it('does not repeat a student until every eligible student has been picked in the session', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
 
     $this->actingAs($teacher);
@@ -110,6 +112,7 @@ it('does not repeat a student until every eligible student has been picked in th
 it('excludes marked students from the draw', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $absent = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $present = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
@@ -148,6 +151,7 @@ it('resets the round', function () {
 it('resuming a tirage seeds the round from the students already picked in it', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $session = RandomPickSession::factory()->for($teacher)->for($class, 'schoolClass')->create();
@@ -172,6 +176,7 @@ it('resuming a tirage seeds the round from the students already picked in it', f
 it('keeps two tirages for the same class independent from each other', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
     $sessionA = RandomPickSession::factory()->for($teacher)->for($class, 'schoolClass')->create(['name' => 'Tirage A']);
@@ -262,6 +267,7 @@ it("keeps the draw isolated from another teacher's students", function () {
     $teacher = User::factory()->create();
     $otherTeacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
     $otherClass = SchoolClass::factory()->for($otherTeacher)->create();

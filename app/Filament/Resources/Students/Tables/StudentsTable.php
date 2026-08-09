@@ -55,7 +55,7 @@ class StudentsTable
             ->filters([
                 SelectFilter::make('school_class_id')
                     ->label('Classe')
-                    ->options(fn () => SchoolClass::query()->where('user_id', Auth::id())->pluck('name', 'id')),
+                    ->options(fn () => SchoolClass::query()->where('user_id', Auth::id())->hasSubjects()->pluck('name', 'id')),
                 TernaryFilter::make('is_archived')
                     ->label('Archivé(e)')
                     ->default(false),

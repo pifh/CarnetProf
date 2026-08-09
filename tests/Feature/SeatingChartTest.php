@@ -7,6 +7,7 @@ use App\Models\SeatingPlanApplication;
 use App\Models\SeatingPlanDesk;
 use App\Models\SeatingPlanSeat;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -28,7 +29,7 @@ function seatingDesk(SeatingPlan $plan, int $row = 0, int $col = 0, int $capacit
 
 it('creates a default application for an existing plan and class', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
 
     $this->actingAs($teacher);
@@ -48,8 +49,8 @@ it('creates a default application for an existing plan and class', function () {
 
 it('reuses the same plan across two different classes, each with its own independent application', function () {
     $teacher = User::factory()->create();
-    $classA = SchoolClass::factory()->for($teacher)->create();
-    $classB = SchoolClass::factory()->for($teacher)->create();
+    $classA = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher)->create(['name' => 'Matière A']))->create();
+    $classB = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher)->create(['name' => 'Matière B']))->create();
     $studentA = Student::factory()->for($teacher)->for($classA, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($classB, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -87,7 +88,7 @@ it('reuses the same plan across two different classes, each with its own indepen
 
 it('assigns a student to a desk by clicking', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     $desk = seatingDesk($plan);
@@ -107,7 +108,7 @@ it('assigns a student to a desk by clicking', function () {
 
 it('moves a seated student to an empty seat, vacating the old one', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     $deskA = seatingDesk($plan, 0, 0);
@@ -131,7 +132,7 @@ it('moves a seated student to an empty seat, vacating the old one', function () 
 
 it('swaps two seated students when placing one onto an occupied seat', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -158,7 +159,7 @@ it('swaps two seated students when placing one onto an occupied seat', function 
 
 it('bumps the occupant to unassigned when an unassigned student takes their seat', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -182,7 +183,7 @@ it('bumps the occupant to unassigned when an unassigned student takes their seat
 
 it('does not allow placing a student on a blocked (whole-desk) slot', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     $desk = seatingDesk($plan, 0, 0, blocked: true);
@@ -200,7 +201,7 @@ it('does not allow placing a student on a blocked (whole-desk) slot', function (
 
 it('excludes a blocked slot from randomization but still counts it toward column numbering', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
         'seating_allowed_columns' => ['3'],
     ]);
@@ -225,7 +226,7 @@ it('excludes a blocked slot from randomization but still counts it toward column
 
 it('randomizes seating up to the available desk capacity', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $students = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     seatingDesk($plan);
@@ -246,7 +247,7 @@ it('randomizes seating up to the available desk capacity', function () {
 
 it('clears all seat assignments', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     $desk = seatingDesk($plan);
@@ -276,7 +277,7 @@ it("prevents a teacher from updating or deleting another teacher's seating plan 
 
 it('seats a next-to pair at the same desk when randomizing', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(2)->create();
@@ -301,7 +302,7 @@ it('seats a next-to pair at the same desk when randomizing', function () {
 
 it('respects 1-based allowed rows when randomizing', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
         'seating_allowed_rows' => ['1'],
     ]);
@@ -327,7 +328,7 @@ it('respects 1-based allowed rows when randomizing', function () {
 
 it('respects 1-based allowed columns using the absolute seat position, not the desk index', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
         'seating_allowed_columns' => ['2'],
     ]);
@@ -355,7 +356,7 @@ it('respects 1-based allowed columns using the absolute seat position, not the d
 
 it('keeps a not-next-to pair off the same desk when randomizing', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -379,8 +380,8 @@ it('keeps a not-next-to pair off the same desk when randomizing', function () {
 
 it('only pulls seating pair constraints between students within the randomized pool', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-    $otherClass = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher)->create(['name' => 'Matière A']))->create();
+    $otherClass = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher)->create(['name' => 'Matière B']))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $outsider = Student::factory()->for($teacher)->for($otherClass, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -402,7 +403,7 @@ it('only pulls seating pair constraints between students within the randomized p
 
 it('flags a manually seated next-to pair placed at different desks as a violation', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -431,7 +432,7 @@ it('flags a manually seated next-to pair placed at different desks as a violatio
 
 it('reports no violations when a next-to pair is seated at the same desk', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -456,7 +457,7 @@ it('reports no violations when a next-to pair is seated at the same desk', funct
 
 it('flags a manually seated not-next-to pair placed at the same desk as a violation', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -482,7 +483,7 @@ it('flags a manually seated not-next-to pair placed at the same desk as a violat
 
 it('flags a student seated outside their allowed rows or columns as a violation', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
         'seating_allowed_rows' => ['2'],
         'seating_allowed_columns' => ['2'],
@@ -509,7 +510,7 @@ it('flags a student seated outside their allowed rows or columns as a violation'
 it("keeps the seating chart's student pool isolated from another teacher's class", function () {
     $teacher = User::factory()->create();
     $otherTeacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
     $otherClass = SchoolClass::factory()->for($otherTeacher)->create();
@@ -527,7 +528,7 @@ it("keeps the seating chart's student pool isolated from another teacher's class
 
 it('locks a manually placed student and keeps them there when randomizing the rest', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -554,7 +555,7 @@ it('locks a manually placed student and keeps them there when randomizing the re
 
 it('does not let a locked seat be clicked away or overwritten manually', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -580,7 +581,7 @@ it('does not let a locked seat be clicked away or overwritten manually', functio
 
 it('blocks an empty seat so no student can be placed there, and unblocks it again', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     $desk = seatingDesk($plan);
@@ -609,7 +610,7 @@ it('blocks an empty seat so no student can be placed there, and unblocks it agai
 
 it('excludes a blocked empty seat from randomization without freeing it to another student', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $students = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(2)->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     $desk = seatingDesk($plan);
@@ -633,7 +634,7 @@ it('excludes a blocked empty seat from randomization without freeing it to anoth
 
 it('keeps every archived application around instead of deleting it, hidden from the default list', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
 
     $this->actingAs($teacher);
@@ -660,7 +661,7 @@ it('keeps every archived application around instead of deleting it, hidden from 
 
 it('selects an application by clicking a date in the sidebar', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
 
     $this->actingAs($teacher);
@@ -682,8 +683,8 @@ it('selects an application by clicking a date in the sidebar', function () {
 
 it('does not select an application belonging to a different plan or class', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
-    $otherClass = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher)->create(['name' => 'Matière A']))->create();
+    $otherClass = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher)->create(['name' => 'Matière B']))->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     $foreignApplication = SeatingPlanApplication::factory()->for($teacher)->for($plan, 'seatingPlan')->for($otherClass, 'schoolClass')->create();
 
@@ -701,7 +702,7 @@ it('does not select an application belonging to a different plan or class', func
 
 it('creates a new dated application of the same plan, starting from a copy of the current seating', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     $desk = seatingDesk($plan);
@@ -737,7 +738,7 @@ it('creates a new dated application of the same plan, starting from a copy of th
 
 it('sets an effective date on the current application', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
 
     $this->actingAs($teacher);
@@ -754,7 +755,7 @@ it('sets an effective date on the current application', function () {
 
 it('avoids reseating a student where they sat in a previous application of the same plan', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
@@ -790,7 +791,7 @@ it('avoids reseating a student where they sat in a previous application of the s
 
 it('does not let a different plan\'s seating history influence "avoid repeat seat"', function () {
     $teacher = User::factory()->create();
-    $class = SchoolClass::factory()->for($teacher)->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 

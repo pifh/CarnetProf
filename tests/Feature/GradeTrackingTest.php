@@ -13,14 +13,16 @@ use Livewire\Livewire;
 it('shows per-term and annual averages for every student in the class', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term1 = Term::factory()->for($teacher)->create(['label' => 'Trimestre 1', 'position' => 1]);
     $term2 = Term::factory()->for($teacher)->create(['label' => 'Trimestre 2', 'position' => 2]);
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
-    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term1)->create(['max_score' => 20]);
+    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term1)->for($subject)->create(['max_score' => 20]);
     Grade::factory()->for($teacher)->for($eval1)->for($student, 'student')->create(['score' => 10, 'status' => 'graded']);
 
-    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term2)->create(['max_score' => 20]);
+    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term2)->for($subject)->create(['max_score' => 20]);
     Grade::factory()->for($teacher)->for($eval2)->for($student, 'student')->create(['score' => 20, 'status' => 'graded']);
 
     $this->actingAs($teacher);
@@ -37,11 +39,13 @@ it('shows per-term and annual averages for every student in the class', function
 it('computes the class summary as the average of every student average', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term = Term::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
-    $evalA = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['max_score' => 20]);
+    $evalA = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['max_score' => 20]);
     Grade::factory()->for($teacher)->for($evalA)->for($studentA, 'student')->create(['score' => 10, 'status' => 'graded']);
     Grade::factory()->for($teacher)->for($evalA)->for($studentB, 'student')->create(['score' => 20, 'status' => 'graded']);
 
@@ -56,13 +60,15 @@ it('computes the class summary as the average of every student average', functio
 it('lists every grade for the selected student including ungraded ones', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
-    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['title' => 'Contrôle 1', 'max_score' => 20, 'exam_date' => '2026-01-10']);
+    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['title' => 'Contrôle 1', 'max_score' => 20, 'exam_date' => '2026-01-10']);
     Grade::factory()->for($teacher)->for($eval1)->for($student, 'student')->create(['score' => 14, 'status' => 'graded']);
 
-    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['title' => 'Contrôle 2', 'max_score' => 20, 'exam_date' => '2026-02-10']);
+    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['title' => 'Contrôle 2', 'max_score' => 20, 'exam_date' => '2026-02-10']);
     Grade::factory()->for($teacher)->for($eval2)->for($student, 'student')->absent()->create();
 
     $this->actingAs($teacher);
@@ -80,13 +86,15 @@ it('lists every grade for the selected student including ungraded ones', functio
 it('only plots graded evaluations on the progression chart, normalized to /20', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
-    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['max_score' => 10, 'exam_date' => '2026-01-10']);
+    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['max_score' => 10, 'exam_date' => '2026-01-10']);
     Grade::factory()->for($teacher)->for($eval1)->for($student, 'student')->create(['score' => 5, 'status' => 'graded']);
 
-    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['max_score' => 20, 'exam_date' => '2026-02-10']);
+    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['max_score' => 20, 'exam_date' => '2026-02-10']);
     Grade::factory()->for($teacher)->for($eval2)->for($student, 'student')->notGraded();
 
     $this->actingAs($teacher);
@@ -104,14 +112,16 @@ it('only plots graded evaluations on the progression chart, normalized to /20', 
 it('filters the selected student\'s grade list by term', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term1 = Term::factory()->for($teacher)->create(['label' => 'Trimestre 1', 'position' => 1]);
     $term2 = Term::factory()->for($teacher)->create(['label' => 'Trimestre 2', 'position' => 2]);
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
-    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term1)->create(['max_score' => 20]);
+    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term1)->for($subject)->create(['max_score' => 20]);
     Grade::factory()->for($teacher)->for($eval1)->for($student, 'student')->create(['score' => 12, 'status' => 'graded']);
 
-    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term2)->create(['max_score' => 20]);
+    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term2)->for($subject)->create(['max_score' => 20]);
     Grade::factory()->for($teacher)->for($eval2)->for($student, 'student')->create(['score' => 18, 'status' => 'graded']);
 
     $this->actingAs($teacher);
@@ -155,17 +165,19 @@ it('scopes averages to the selected subject when a class has several', function 
 it('lists every evaluation of the selected term as a grade column, including ungraded ones', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
-    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['title' => 'Contrôle 1', 'max_score' => 20, 'exam_date' => '2026-01-10']);
+    $eval1 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['title' => 'Contrôle 1', 'max_score' => 20, 'exam_date' => '2026-01-10']);
     Grade::factory()->for($teacher)->for($eval1)->for($student, 'student')->create(['score' => 12, 'status' => 'graded']);
 
-    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['title' => 'Contrôle 2', 'max_score' => 20, 'exam_date' => '2026-02-10']);
+    $eval2 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['title' => 'Contrôle 2', 'max_score' => 20, 'exam_date' => '2026-02-10']);
     Grade::factory()->for($teacher)->for($eval2)->for($student, 'student')->absent()->create();
 
     // A third evaluation with no Grade row at all for this student yet.
-    $eval3 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['title' => 'Contrôle 3', 'max_score' => 20, 'exam_date' => '2026-03-10']);
+    $eval3 = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['title' => 'Contrôle 3', 'max_score' => 20, 'exam_date' => '2026-03-10']);
 
     $this->actingAs($teacher);
 
@@ -188,11 +200,13 @@ it('lists every evaluation of the selected term as a grade column, including ung
 it('computes per-evaluation class averages when a single term is selected', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term = Term::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
-    $eval = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['max_score' => 20]);
+    $eval = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['max_score' => 20]);
     Grade::factory()->for($teacher)->for($eval)->for($studentA, 'student')->create(['score' => 10, 'status' => 'graded']);
     Grade::factory()->for($teacher)->for($eval)->for($studentB, 'student')->create(['score' => 16, 'status' => 'graded']);
 
@@ -209,7 +223,8 @@ it("only shows a teacher's own class in the school class list", function () {
     $teacher = User::factory()->create();
     $otherTeacher = User::factory()->create();
 
-    SchoolClass::factory()->for($teacher)->create(['name' => 'Ma classe']);
+    $class = SchoolClass::factory()->for($teacher)->create(['name' => 'Ma classe']);
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     SchoolClass::factory()->for($otherTeacher)->create(['name' => 'Classe d\'un autre']);
 
     $this->actingAs($teacher);

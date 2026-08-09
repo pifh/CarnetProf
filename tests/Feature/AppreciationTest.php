@@ -16,6 +16,7 @@ use Livewire\Livewire;
 it('lets a teacher write and save an appreciation', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
@@ -37,6 +38,7 @@ it('lets a teacher write and save an appreciation', function () {
 it('lets a teacher write a year-level appreciation when no term is selected (année complète)', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
     $this->actingAs($teacher);
@@ -56,9 +58,11 @@ it('lets a teacher write a year-level appreciation when no term is selected (ann
 it('toggles an appreciation between draft and final', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
-    Appreciation::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->for($term)->create(['is_draft' => true]);
+    Appreciation::factory()->for($teacher)->for($student)->for($class, 'schoolClass')->for($term)->for($subject)->create(['is_draft' => true]);
 
     $this->actingAs($teacher);
 
@@ -73,9 +77,11 @@ it('toggles an appreciation between draft and final', function () {
 it('suggests an appreciation based on the student\'s grades', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
-    $evaluation = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['max_score' => 20]);
+    $evaluation = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['max_score' => 20]);
     Grade::factory()->for($teacher)->for($evaluation)->for($student)->create(['score' => 18, 'status' => 'graded']);
 
     $this->actingAs($teacher);
@@ -94,6 +100,7 @@ it('suggests an appreciation based on the student\'s grades', function () {
 it('applies a template to an appreciation', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $template = AppreciationTemplate::factory()->for($teacher)->create(['content' => 'Élève sérieux et impliqué.']);
@@ -170,6 +177,7 @@ it("keeps a teacher's appreciations isolated from another teacher's students", f
     $teacher = User::factory()->create();
     $otherTeacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $term = Term::factory()->for($teacher)->create();
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 

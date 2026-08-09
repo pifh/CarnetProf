@@ -107,6 +107,22 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return $this->calendar_token;
     }
 
+    public function ensureApiToken(): string
+    {
+        if (blank($this->api_token)) {
+            $this->regenerateApiToken();
+        }
+
+        return $this->api_token;
+    }
+
+    public function regenerateApiToken(): string
+    {
+        $this->forceFill(['api_token' => Str::random(40)])->save();
+
+        return $this->api_token;
+    }
+
     public function calendarFeedCategoriesOrDefault(): array
     {
         return $this->calendar_feed_categories ?? self::CALENDAR_FEED_CATEGORIES;

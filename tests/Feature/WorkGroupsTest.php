@@ -18,6 +18,7 @@ it("only lists a teacher's own work groups", function () {
     $otherTeacher = User::factory()->create();
 
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $ownGroup = StudentSubgroup::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
     $otherClass = SchoolClass::factory()->for($otherTeacher)->create();
@@ -43,6 +44,7 @@ it("prevents a teacher from updating or deleting another teacher's group", funct
 it('splits a class into a balanced number of groups', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(10)->create();
 
     $this->actingAs($teacher);
@@ -69,6 +71,7 @@ it('splits a class into a balanced number of groups', function () {
 it('splits a class by target group size', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(9)->create();
 
     $this->actingAs($teacher);
@@ -91,6 +94,7 @@ it('splits a class by target group size', function () {
 it('excludes marked students from the generated groups', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $absent = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
 
@@ -112,6 +116,7 @@ it('excludes marked students from the generated groups', function () {
 it('saves generated groups without deleting manually-created or previously-generated ones', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $students = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(4)->create();
     $manualGroup = StudentSubgroup::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
@@ -157,6 +162,7 @@ it('saves generated groups without deleting manually-created or previously-gener
 it('records the criteria used in the archived generation', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $students = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(6)->create();
 
     $this->actingAs($teacher);
@@ -187,6 +193,7 @@ it('records the criteria used in the archived generation', function () {
 it('deletes a generation from history without deleting its groups', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(4)->create();
 
     $this->actingAs($teacher);
@@ -218,6 +225,7 @@ it("prevents a teacher from deleting another teacher's group generation", functi
     $otherGeneration = GroupGeneration::factory()->for($otherTeacher)->for($otherClass, 'schoolClass')->create();
 
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
 
     $this->actingAs($teacher);
 
@@ -231,8 +239,8 @@ it("prevents a teacher from deleting another teacher's group generation", functi
 it('scopes generation history by class and subject', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
-    $subjectA = Subject::factory()->for($teacher)->create();
-    $subjectB = Subject::factory()->for($teacher)->create();
+    $subjectA = Subject::factory()->for($teacher)->create(['name' => 'Matière A']);
+    $subjectB = Subject::factory()->for($teacher)->create(['name' => 'Matière B']);
     $class->subjects()->attach([$subjectA->id, $subjectB->id]);
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(4)->create();
 
@@ -263,6 +271,7 @@ it('scopes generation history by class and subject', function () {
 it('requires an activity name before saving groups', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(4)->create();
 
     $this->actingAs($teacher);
@@ -281,6 +290,7 @@ it('requires an activity name before saving groups', function () {
 it('requires a term to grade the activity', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(4)->create();
 
     $this->actingAs($teacher);
@@ -301,6 +311,7 @@ it('requires a term to grade the activity', function () {
 it('gives every member of a group the same score when the activity is graded', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $term = Term::factory()->for($teacher)->create();
     Student::factory()->for($teacher)->for($class, 'schoolClass')->count(4)->create();
 
@@ -345,6 +356,7 @@ it('gives every member of a group the same score when the activity is graded', f
 it('leaves a group not_graded when no score was entered for it', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $term = Term::factory()->for($teacher)->create();
     $students = Student::factory()->for($teacher)->for($class, 'schoolClass')->count(2)->create();
 
@@ -373,6 +385,7 @@ it("keeps the group generator's student pool isolated from another teacher's cla
     $teacher = User::factory()->create();
     $otherTeacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
 
     $otherClass = SchoolClass::factory()->for($otherTeacher)->create();

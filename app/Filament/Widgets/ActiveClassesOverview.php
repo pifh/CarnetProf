@@ -20,6 +20,7 @@ class ActiveClassesOverview extends TableWidget
         return $table
             ->query(fn (): Builder => SchoolClass::query()
                 ->where('is_archived', false)
+                ->hasSubjects()
                 ->withCount(['students' => fn ($query) => $query->where('is_archived', false)]))
             ->paginated(false)
             ->emptyStateHeading('Aucune classe active')

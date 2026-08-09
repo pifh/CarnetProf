@@ -40,13 +40,16 @@ it("prevents a teacher from updating or deleting another teacher's sequence", fu
 it('appends a new sequence to the end of its class list', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
-    ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->create(['position' => 3]);
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
+    ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->for($subject)->create(['position' => 3]);
 
     $this->actingAs($teacher);
 
     Livewire::test(CreateProgressionSequence::class)
         ->fillForm([
             'school_class_id' => $class->id,
+            'subject_id' => $subject->id,
             'title' => 'Chapitre 4 : Les décimaux',
             'status' => 'not_started',
         ])
@@ -100,7 +103,9 @@ it('reports being ahead of pace when everything is done early in the school year
 
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create(['school_year' => '2026-2027']);
-    ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->done()->count(3)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
+    ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->for($subject)->done()->count(3)->create();
 
     $this->actingAs($teacher);
 
@@ -118,7 +123,9 @@ it('reports being behind pace when nothing is done late in the school year', fun
 
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create(['school_year' => '2026-2027']);
-    ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->count(3)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
+    ProgressionSequence::factory()->for($teacher)->for($class, 'schoolClass')->for($subject)->count(3)->create();
 
     $this->actingAs($teacher);
 

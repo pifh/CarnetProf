@@ -16,7 +16,7 @@ class DashboardStatsOverview extends StatsOverviewWidget
     {
         $today = Carbon::today();
 
-        $activeClasses = SchoolClass::query()->where('is_archived', false)->count();
+        $activeClasses = SchoolClass::query()->where('is_archived', false)->hasSubjects()->count();
         $activeStudents = Student::query()->where('is_archived', false)->count();
         $birthdaysToday = Student::query()
             ->where('is_archived', false)

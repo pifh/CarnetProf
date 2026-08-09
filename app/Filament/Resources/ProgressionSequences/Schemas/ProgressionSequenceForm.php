@@ -20,7 +20,7 @@ class ProgressionSequenceForm
                     ->relationship(
                         name: 'schoolClass',
                         titleAttribute: 'name',
-                        modifyQueryUsing: fn ($query) => $query->where('user_id', Auth::id())->where('is_archived', false),
+                        modifyQueryUsing: fn ($query) => $query->where('user_id', Auth::id())->where('is_archived', false)->hasSubjects(),
                     )
                     ->searchable()
                     ->preload()

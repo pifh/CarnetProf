@@ -60,7 +60,7 @@ class EvaluationsTable
             ->filters([
                 SelectFilter::make('school_class_id')
                     ->label('Classe')
-                    ->options(fn () => SchoolClass::query()->where('user_id', Auth::id())->pluck('name', 'id')),
+                    ->options(fn () => SchoolClass::query()->where('user_id', Auth::id())->hasSubjects()->pluck('name', 'id')),
                 SelectFilter::make('subject_id')
                     ->label('Matière')
                     ->options(fn () => Subject::query()->where('user_id', Auth::id())->pluck('name', 'id')),

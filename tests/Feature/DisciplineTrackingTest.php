@@ -4,6 +4,7 @@ use App\Filament\Pages\DisciplineTracking;
 use App\Models\DisciplineEntry;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Livewire;
@@ -11,7 +12,9 @@ use Livewire\Livewire;
 it('defaults to the first active class and the saved (or default) thresholds', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create(['name' => 'A - 6e A']);
-    SchoolClass::factory()->for($teacher)->create(['name' => 'B - 5e B']);
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create(['name' => 'Matière A']));
+    $otherClass = SchoolClass::factory()->for($teacher)->create(['name' => 'B - 5e B']);
+    $otherClass->subjects()->attach(Subject::factory()->for($teacher)->create(['name' => 'Matière B']));
     $this->actingAs($teacher);
 
     Livewire::test(DisciplineTracking::class)
@@ -22,6 +25,7 @@ it('defaults to the first active class and the saved (or default) thresholds', f
 it('logs one entry per click and reflects it in total and trip counts', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $this->actingAs($teacher);
 
@@ -36,6 +40,7 @@ it('logs one entry per click and reflects it in total and trip counts', function
 it("resets a student's counter for one category via the page action", function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $this->actingAs($teacher);
 
@@ -50,6 +55,7 @@ it("resets a student's counter for one category via the page action", function (
 it('resets a category for the whole class via the page action', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $this->actingAs($teacher);
@@ -88,6 +94,7 @@ it('rejects a non-numeric threshold', function () {
 it("lists all dates for a student's history, grouped by category", function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $this->actingAs($teacher);
 
@@ -107,6 +114,7 @@ it("lists all dates for a student's history, grouped by category", function () {
 it('deletes a single entry, correcting a mis-click without touching the others', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     $this->actingAs($teacher);
 

@@ -9,6 +9,19 @@ use App\Models\Subject;
 use App\Models\User;
 use Livewire\Livewire;
 
+it('the hasSubjects scope includes only classes with at least one subject attached', function () {
+    $teacher = User::factory()->create();
+    $withSubject = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $withSubject->subjects()->attach($subject->id);
+    $withoutSubject = SchoolClass::factory()->for($teacher)->create();
+
+    $classes = SchoolClass::query()->where('user_id', $teacher->id)->hasSubjects()->get();
+
+    expect($classes->pluck('id'))->toContain($withSubject->id)
+        ->and($classes->pluck('id'))->not->toContain($withoutSubject->id);
+});
+
 it('only shows a teacher their own classes', function () {
     $teacher = User::factory()->create();
     $otherTeacher = User::factory()->create();

@@ -30,6 +30,17 @@ class SchoolClass extends Model
         return $this->belongsToMany(Subject::class);
     }
 
+    /**
+     * Classes kept with no subject attached are pure archives (old cohorts kept
+     * only so their students remain visible in the Trombinoscope and for
+     * birthdays) — exclude them everywhere else a "which class am I working
+     * in" selector is built.
+     */
+    public function scopeHasSubjects(Builder $query): Builder
+    {
+        return $query->has('subjects');
+    }
+
     public function students(): HasMany
     {
         return $this->hasMany(Student::class);

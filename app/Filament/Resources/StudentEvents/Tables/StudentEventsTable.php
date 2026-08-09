@@ -47,7 +47,7 @@ class StudentEventsTable
             ->filters([
                 SelectFilter::make('student_id')
                     ->label('Classe')
-                    ->options(fn () => SchoolClass::query()->where('user_id', Auth::id())->where('is_archived', false)->orderBy('name')->pluck('name', 'id'))
+                    ->options(fn () => SchoolClass::query()->where('user_id', Auth::id())->where('is_archived', false)->hasSubjects()->orderBy('name')->pluck('name', 'id'))
                     ->query(function ($query, array $data) {
                         if (! $data['value']) {
                             return $query;

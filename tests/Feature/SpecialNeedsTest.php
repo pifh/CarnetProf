@@ -4,6 +4,7 @@ use App\Filament\Pages\SpecialNeeds;
 use App\Filament\Resources\Students\Pages\EditStudent;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -40,7 +41,9 @@ it('lists distinct special needs tags across a teacher\'s own students only', fu
 it('only shows students with special needs for the selected class on the Besoins particuliers page', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create(['name' => 'Matière A']));
     $otherClass = SchoolClass::factory()->for($teacher)->create();
+    $otherClass->subjects()->attach(Subject::factory()->for($teacher)->create(['name' => 'Matière B']));
 
     $withNeeds = Student::factory()->for($teacher)->for($class, 'schoolClass')->create(['special_needs' => ['Arial 16']]);
     Student::factory()->for($teacher)->for($class, 'schoolClass')->create(['special_needs' => null]);

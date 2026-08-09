@@ -8,6 +8,7 @@ use App\Models\Reminder;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Models\StudentPhoto;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -27,7 +28,9 @@ it('counts only the acting teacher\'s active classes, students and birthdays tod
     $otherTeacher = User::factory()->create();
 
     $activeClass = SchoolClass::factory()->for($teacher)->create();
+    $activeClass->subjects()->attach(Subject::factory()->for($teacher)->create());
     SchoolClass::factory()->for($teacher)->create(['is_archived' => true, 'archived_at' => now()]);
+    SchoolClass::factory()->for($teacher)->create(); // subject-less: excluded from "classes actives"
     SchoolClass::factory()->for($otherTeacher)->create();
 
     Student::factory()->for($teacher)->for($activeClass, 'schoolClass')->create([
@@ -118,17 +121,19 @@ it('lists only the teacher\'s own active classes with their active student count
     $otherTeacher = User::factory()->create();
 
     $class = SchoolClass::factory()->for($teacher)->create();
+    $class->subjects()->attach(Subject::factory()->for($teacher)->create());
     Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
     Student::factory()->for($teacher)->for($class, 'schoolClass')->archived()->create();
 
     $archivedClass = SchoolClass::factory()->for($teacher)->create(['is_archived' => true, 'archived_at' => now()]);
+    $subjectLessClass = SchoolClass::factory()->for($teacher)->create();
     SchoolClass::factory()->for($otherTeacher)->create();
 
     $this->actingAs($teacher);
 
     Livewire::test(ActiveClassesOverview::class)
         ->assertCanSeeTableRecords([$class])
-        ->assertCanNotSeeTableRecords([$archivedClass])
+        ->assertCanNotSeeTableRecords([$archivedClass, $subjectLessClass])
         ->assertCountTableRecords(1);
 });
 

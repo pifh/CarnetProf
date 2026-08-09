@@ -95,6 +95,7 @@ class GroupGenerator extends Page
         $this->schoolClassId = SchoolClass::query()
             ->where('user_id', Auth::id())
             ->where('is_archived', false)
+            ->hasSubjects()
             ->orderBy('name')
             ->value('id');
 
@@ -145,6 +146,7 @@ class GroupGenerator extends Page
         return SchoolClass::query()
             ->where('user_id', Auth::id())
             ->where('is_archived', false)
+            ->hasSubjects()
             ->orderBy('name')
             ->get();
     }

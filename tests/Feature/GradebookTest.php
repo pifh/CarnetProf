@@ -156,10 +156,12 @@ it("blocks a teacher from opening another teacher's evaluation grade grid", func
 it('computes per-student and class averages on the Averages page', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
+    $subject = Subject::factory()->for($teacher)->create();
+    $class->subjects()->attach($subject);
     $term = Term::factory()->for($teacher)->create();
     $studentA = Student::factory()->for($teacher)->for($class, 'schoolClass')->create(['last_name' => 'Aaa']);
     $studentB = Student::factory()->for($teacher)->for($class, 'schoolClass')->create(['last_name' => 'Bbb']);
-    $evaluation = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->create(['max_score' => 20]);
+    $evaluation = Evaluation::factory()->for($teacher)->for($class, 'schoolClass')->for($term)->for($subject)->create(['max_score' => 20]);
 
     Grade::factory()->for($teacher)->for($evaluation)->for($studentA, 'student')->create(['score' => 10, 'status' => 'graded']);
     Grade::factory()->for($teacher)->for($evaluation)->for($studentB, 'student')->create(['score' => 20, 'status' => 'graded']);
