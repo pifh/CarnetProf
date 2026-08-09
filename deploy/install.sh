@@ -102,12 +102,33 @@ fi
 [[ -n "$DB_USERNAME" ]] || { read -rp "Utilisateur MySQL : " DB_USERNAME; }
 [[ -n "$DB_PASSWORD" ]] || { read -rsp "Mot de passe MySQL : " DB_PASSWORD; echo; }
 
+mkdir -p "$TARGET_PATH"
+
+# CloudPanel crée htdocs/<domaine> en root avant de le remettre à
+# l'utilisateur du site : le propriétaire du dossier ne correspond alors
+# pas toujours à l'utilisateur qui exécute ce script, ce que Git refuse
+# par défaut ("dubious ownership"). Enregistrer le chemin absolu résolu
+# via `cd && pwd` s'est révélé peu fiable en pratique (probable symlink
+# sous /home sur ce type de VPS, donc chemin logique ≠ chemin physique
+# que Git compare) — on fait confiance à tous les dépôts pour cet
+# utilisateur plutôt que de chasser la résolution exacte du chemin ; sans
+# risque ici puisque cet utilisateur système n'a que ce site.
+git config --global --add safe.directory '*'
+
 if [[ -d "$TARGET_PATH/.git" ]]; then
     echo "==> Dépôt déjà présent dans $TARGET_PATH, pull plutôt que clone"
     git -C "$TARGET_PATH" pull --ff-only "$REPO" "$BRANCH"
 else
-    echo "==> Clonage de $REPO dans $TARGET_PATH"
-    git clone --branch "$BRANCH" "$REPO" "$TARGET_PATH"
+    # `git clone` refuse un dossier non vide — or CloudPanel pré-remplit
+    # htdocs/<domaine> (page par défaut, etc.) et install.sh lui-même y a
+    # été copié. On initialise le dépôt en place à la place : ça échoue
+    # loudly (set -e) s'il y a un vrai conflit de nom de fichier avec le
+    # dépôt, sans jamais écraser silencieusement quoi que ce soit.
+    echo "==> Initialisation du dépôt dans $TARGET_PATH"
+    git -C "$TARGET_PATH" init -q
+    git -C "$TARGET_PATH" remote add origin "$REPO"
+    git -C "$TARGET_PATH" fetch --quiet origin "$BRANCH"
+    git -C "$TARGET_PATH" checkout -q -b "$BRANCH" "origin/$BRANCH"
 fi
 
 cd "$TARGET_PATH"

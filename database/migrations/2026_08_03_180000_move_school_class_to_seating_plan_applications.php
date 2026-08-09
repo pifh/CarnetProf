@@ -40,15 +40,23 @@ return new class extends Migration
             $table->dropUnique('seating_plans_school_class_id_name_unique');
         });
 
-        // That dedicated index must also go before the column itself —
-        // SQLite's table-recreation strategy for dropColumn() doesn't drop
-        // indexes referencing the dropped column on its own.
+        // The foreign key must go before the index that backs it — this
+        // very index was created by the advanced-layouts migration
+        // specifically to support the FK (MySQL/MariaDB refuse to drop an
+        // index a FK constraint still relies on). The index must then go
+        // before the column itself: SQLite's table-recreation strategy for
+        // dropColumn() doesn't drop indexes referencing the dropped column
+        // on its own.
+        Schema::table('seating_plans', function (Blueprint $table) {
+            $table->dropForeign(['school_class_id']);
+        });
+
         Schema::table('seating_plans', function (Blueprint $table) {
             $table->dropIndex('seating_plans_school_class_id_index');
         });
 
         Schema::table('seating_plans', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('school_class_id');
+            $table->dropColumn('school_class_id');
         });
 
         Schema::table('seating_plans', function (Blueprint $table) {
