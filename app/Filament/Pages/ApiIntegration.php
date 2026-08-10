@@ -20,24 +20,49 @@ class ApiIntegration extends Page
 
     protected string $view = 'filament.pages.api-integration';
 
+    public function getTokenProperty(): string
+    {
+        return Auth::user()->ensureApiToken();
+    }
+
     public function getBirthdaysUrlProperty(): string
     {
-        return route('api.nas.birthdays', ['token' => Auth::user()->ensureApiToken()]);
+        return route('api.nas.birthdays', ['token' => $this->token]);
     }
 
     public function getScheduleUrlProperty(): string
     {
-        return route('api.nas.schedule', ['token' => Auth::user()->ensureApiToken()]);
+        return route('api.nas.schedule', ['token' => $this->token]);
     }
 
     public function getRemindersUrlProperty(): string
     {
-        return route('api.nas.reminders', ['token' => Auth::user()->ensureApiToken()]);
+        return route('api.nas.reminders', ['token' => $this->token]);
     }
 
     public function getHomeworkUrlProperty(): string
     {
-        return route('api.nas.homework', ['token' => Auth::user()->ensureApiToken()]);
+        return route('api.nas.homework', ['token' => $this->token]);
+    }
+
+    public function getBirthdaysBearerUrlProperty(): string
+    {
+        return route('api.nas.bearer.birthdays');
+    }
+
+    public function getScheduleBearerUrlProperty(): string
+    {
+        return route('api.nas.bearer.schedule');
+    }
+
+    public function getRemindersBearerUrlProperty(): string
+    {
+        return route('api.nas.bearer.reminders');
+    }
+
+    public function getHomeworkBearerUrlProperty(): string
+    {
+        return route('api.nas.bearer.homework');
     }
 
     public function regenerateToken(): void

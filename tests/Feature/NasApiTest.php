@@ -152,7 +152,29 @@ it('invalidates the old token when a new one is regenerated', function () {
     $this->getJson("/api/nas/{$newToken}/reminders")->assertOk();
 });
 
-it('shows the 4 endpoint URLs on the Intégration API page and lets a teacher regenerate the token', function () {
+it('authenticates via Authorization: Bearer on the tokenless routes', function () {
+    $teacher = User::factory()->create();
+    $done = Reminder::factory()->for($teacher)->done()->create();
+    $pending = Reminder::factory()->for($teacher)->create(['title' => 'Urgent']);
+
+    $token = $teacher->ensureApiToken();
+
+    $this->withHeader('Authorization', "Bearer {$token}")
+        ->getJson('/api/nas/reminders')
+        ->assertOk()
+        ->assertJsonPath('count', 1)
+        ->assertJsonFragment(['title' => 'Urgent']);
+});
+
+it('rejects the tokenless route with no bearer token and with an invalid one', function () {
+    $this->getJson('/api/nas/reminders')->assertStatus(401);
+
+    $this->withHeader('Authorization', 'Bearer not-a-real-token')
+        ->getJson('/api/nas/reminders')
+        ->assertNotFound();
+});
+
+it('shows both URL forms (path token and bearer) on the Intégration API page and lets a teacher regenerate the token', function () {
     $teacher = User::factory()->create();
     $this->actingAs($teacher);
 
@@ -160,12 +182,18 @@ it('shows the 4 endpoint URLs on the Intégration API page and lets a teacher re
 
     $component = Livewire::test(ApiIntegration::class);
 
-    expect($component->get('birthdaysUrl'))->toContain($oldToken)
+    expect($component->get('token'))->toBe($oldToken)
+        ->and($component->get('birthdaysUrl'))->toContain($oldToken)
         ->and($component->get('scheduleUrl'))->toContain($oldToken)
         ->and($component->get('remindersUrl'))->toContain($oldToken)
-        ->and($component->get('homeworkUrl'))->toContain($oldToken);
+        ->and($component->get('homeworkUrl'))->toContain($oldToken)
+        ->and($component->get('birthdaysBearerUrl'))->not->toContain($oldToken)
+        ->and($component->get('scheduleBearerUrl'))->not->toContain($oldToken)
+        ->and($component->get('remindersBearerUrl'))->not->toContain($oldToken)
+        ->and($component->get('homeworkBearerUrl'))->not->toContain($oldToken);
 
     $component->call('regenerateToken');
 
-    expect($component->get('birthdaysUrl'))->not->toContain($oldToken);
+    expect($component->get('birthdaysUrl'))->not->toContain($oldToken)
+        ->and($component->get('token'))->not->toBe($oldToken);
 });

@@ -11,22 +11,28 @@ use App\Models\User;
 use App\Services\CalendarItemCollector;
 use App\Support\CalendarCategories;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 /**
  * Publicly reachable (no Filament panel session) read-only JSON endpoints for
  * an external automation (a NAS running N8N) to pull today's birthdays,
  * schedule and pending actions for automatic printing. Same access-control
- * idiom as CalendarFeedController: an opaque per-teacher token in the URL is
- * the only auth, looked up with withoutGlobalScopes() since there's no
- * session — every query below must therefore scope by user_id explicitly,
+ * idiom as CalendarFeedController: an opaque per-teacher token is the only
+ * auth, looked up with withoutGlobalScopes() since there's no session —
+ * every query below must therefore scope by user_id explicitly,
  * BelongsToTeacher's global scope is a no-op without an authenticated user.
+ *
+ * Every endpoint accepts the token two ways, registered as two route groups
+ * in routes/api.php pointing at the same methods: in the URL path (simplest,
+ * works with any HTTP client) or as `Authorization: Bearer <token>` (no
+ * secret in the URL/logs) — whichever a given client supports.
  */
 class NasFeedController extends Controller
 {
-    public function birthdays(string $token): JsonResponse
+    public function birthdays(Request $request, ?string $token = null): JsonResponse
     {
-        $user = $this->resolveUser($token);
+        $user = $this->resolveUser($request, $token);
         $today = Carbon::today();
 
         $students = Student::query()
@@ -65,9 +71,9 @@ class NasFeedController extends Controller
         ]);
     }
 
-    public function schedule(string $token, CalendarItemCollector $collector): JsonResponse
+    public function schedule(Request $request, CalendarItemCollector $collector, ?string $token = null): JsonResponse
     {
-        $user = $this->resolveUser($token);
+        $user = $this->resolveUser($request, $token);
         $today = Carbon::today()->toDateString();
 
         $items = $collector->forUser($user)
@@ -92,9 +98,9 @@ class NasFeedController extends Controller
         ]);
     }
 
-    public function reminders(string $token): JsonResponse
+    public function reminders(Request $request, ?string $token = null): JsonResponse
     {
-        $user = $this->resolveUser($token);
+        $user = $this->resolveUser($request, $token);
 
         $reminders = Reminder::query()
             ->where('user_id', $user->id)
@@ -114,9 +120,9 @@ class NasFeedController extends Controller
         ]);
     }
 
-    public function homework(string $token): JsonResponse
+    public function homework(Request $request, ?string $token = null): JsonResponse
     {
-        $user = $this->resolveUser($token);
+        $user = $this->resolveUser($request, $token);
         $today = Carbon::today();
 
         $homework = LogbookEntry::query()
@@ -138,8 +144,12 @@ class NasFeedController extends Controller
         ]);
     }
 
-    private function resolveUser(string $token): User
+    private function resolveUser(Request $request, ?string $token): User
     {
+        $token ??= $request->bearerToken();
+
+        abort_if(blank($token), 401, 'Jeton manquant : passez-le dans l\'URL ou via Authorization: Bearer.');
+
         return User::withoutGlobalScopes()->where('api_token', $token)->firstOrFail();
     }
 }
