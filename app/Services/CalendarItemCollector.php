@@ -8,6 +8,7 @@ use App\Filament\Resources\CalendarEvents\CalendarEventResource;
 use App\Filament\Resources\LogbookEntries\LogbookEntryResource;
 use App\Filament\Resources\StudentEvents\StudentEventResource;
 use App\Models\CalendarEvent;
+use App\Models\EcoleDirecteEvent;
 use App\Models\LogbookEntry;
 use App\Models\PersonalBirthday;
 use App\Models\Student;
@@ -41,6 +42,7 @@ class CalendarItemCollector
     {
         return collect()
             ->merge($this->logbookEntries($user))
+            ->merge($this->ecoleDirecteEvents($user))
             ->merge($this->studentEvents($user))
             ->merge($this->calendarEvents($user, [CalendarEvent::TYPE_REUNION, CalendarEvent::TYPE_RDV], 'reunions_rdv'))
             ->merge($this->calendarEvents($user, [CalendarEvent::TYPE_ETABLISSEMENT], 'etablissement'))
@@ -56,7 +58,10 @@ class CalendarItemCollector
     {
         return LogbookEntry::query()
             ->where('user_id', $user->id)
-            ->with(['schoolClass', 'subject', 'progressionSequence', 'ecoleDirecteEvent'])
+            // withTrashed(): a séance's class may since have been archived —
+            // the calendar still shows the historical record correctly
+            // rather than erroring or blanking out its title.
+            ->with(['schoolClass' => fn ($query) => $query->withTrashed(), 'subject', 'progressionSequence', 'ecoleDirecteEvent'])
             ->get()
             ->map(function (LogbookEntry $entry) {
                 $description = collect([
@@ -78,7 +83,7 @@ class CalendarItemCollector
                 return new CalendarItem(
                     uid: 'logbook-'.$entry->id,
                     type: 'cours',
-                    title: $entry->schoolClass->name.($entry->subject ? ' — '.$entry->subject->name : ''),
+                    title: ($entry->schoolClass?->name ?? 'Classe supprimée').($entry->subject ? ' — '.$entry->subject->name : ''),
                     description: $description === '' ? null : $description,
                     url: LogbookEntryResource::getUrl('edit', ['record' => $entry]),
                     startsAt: $startsAt,
@@ -86,6 +91,34 @@ class CalendarItemCollector
                     allDay: $allDay,
                 );
             });
+    }
+
+    /**
+     * Raw Ecole-Directe occurrences not yet linked to a séance — shown on
+     * the calendar (in a distinct, gray style, see
+     * CalendarCategories::chipClasses()) as a reminder to link or ignore
+     * them. A linked occurrence is deliberately excluded here: it's already
+     * represented once via logbookEntries(), which uses its start/end time
+     * when a séance is attached — showing it again here would duplicate it.
+     *
+     * @return Collection<int, CalendarItem>
+     */
+    private function ecoleDirecteEvents(User $user): Collection
+    {
+        return EcoleDirecteEvent::query()
+            ->where('user_id', $user->id)
+            ->whereDoesntHave('logbookEntry')
+            ->get()
+            ->map(fn (EcoleDirecteEvent $event) => new CalendarItem(
+                uid: 'ecole-directe-'.$event->id,
+                type: 'ecole_directe',
+                title: $event->title,
+                description: null,
+                url: null,
+                startsAt: $event->starts_at,
+                endsAt: $event->ends_at,
+                allDay: false,
+            ));
     }
 
     /**

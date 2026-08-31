@@ -3,7 +3,7 @@
 namespace App\Support;
 
 /**
- * Single source of truth for the 7 calendar category keys — their French
+ * Single source of truth for the 8 calendar category keys — their French
  * label (used both in the ICS feed CATEGORIES property and the Réglages
  * checkboxes) and their Tailwind chip classes (used only by the in-app
  * day/week/month views). Class names are written out in full below rather
@@ -15,6 +15,7 @@ class CalendarCategories
 {
     public const ALL = [
         'cours',
+        'ecole_directe',
         'reunions_eleves',
         'reunions_rdv',
         'etablissement',
@@ -30,6 +31,7 @@ class CalendarCategories
     {
         return [
             'cours' => 'Cours (cahier de texte)',
+            'ecole_directe' => 'Emploi du temps École-Directe (non rattaché)',
             'reunions_eleves' => 'Réunions liées à un élève',
             'reunions_rdv' => 'Réunions & rendez-vous',
             'etablissement' => 'Événements de l\'établissement',
@@ -48,6 +50,7 @@ class CalendarCategories
     {
         return match ($key) {
             'cours' => 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400',
+            'ecole_directe' => 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400',
             'reunions_eleves' => 'bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400',
             'reunions_rdv' => 'bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400',
             'etablissement' => 'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300',

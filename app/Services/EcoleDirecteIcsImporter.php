@@ -25,6 +25,7 @@ class EcoleDirecteIcsImporter
         $calendar = Reader::read($body);
 
         $count = 0;
+        $seenUids = [];
 
         foreach ($calendar->VEVENT ?? [] as $vevent) {
             $uid = (string) $vevent->UID;
@@ -32,6 +33,8 @@ class EcoleDirecteIcsImporter
             if (blank($uid) || ! isset($vevent->DTSTART)) {
                 continue;
             }
+
+            $seenUids[] = $uid;
 
             EcoleDirecteEvent::query()
                 ->withoutGlobalScope('teacher')
@@ -45,6 +48,20 @@ class EcoleDirecteIcsImporter
                 );
 
             $count++;
+        }
+
+        // Occurrences no longer present in the feed (moved or removed on
+        // Ecole-Directe's side) are dropped — logbook_entries.ecole_directe_event_id
+        // is nullOnDelete(), so any séance linked to one of these just loses
+        // its attachment; the séance itself (content, homework...) is
+        // untouched. Skipped entirely when the feed came back empty, so a
+        // transient fetch hiccup can never wipe every cached occurrence.
+        if ($seenUids !== []) {
+            EcoleDirecteEvent::query()
+                ->withoutGlobalScope('teacher')
+                ->where('user_id', $user->id)
+                ->whereNotIn('uid', $seenUids)
+                ->delete();
         }
 
         $user->forceFill(['ecole_directe_synced_at' => now()])->save();

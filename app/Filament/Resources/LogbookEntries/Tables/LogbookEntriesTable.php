@@ -44,10 +44,6 @@ class LogbookEntriesTable
                     ->label('Devoirs')
                     ->boolean()
                     ->state(fn ($record) => filled($record->homework)),
-                TextColumn::make('homework_due_date')
-                    ->label('À rendre le')
-                    ->date('d/m/Y')
-                    ->placeholder('—'),
             ])
             ->defaultSort('date', 'desc')
             ->filters([

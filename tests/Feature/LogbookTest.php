@@ -1,5 +1,7 @@
 <?php
 
+use App\Filament\Resources\LogbookEntries\Pages\CreateLogbookEntry;
+use App\Filament\Resources\LogbookEntries\Pages\EditLogbookEntry;
 use App\Filament\Resources\LogbookEntries\Pages\ListLogbookEntries;
 use App\Filament\Widgets\UpcomingHomework;
 use App\Models\EcoleDirecteEvent;
@@ -39,20 +41,20 @@ it("prevents a teacher from updating or deleting another teacher's logbook entry
         ->and($teacher->can('delete', $entry))->toBeFalse();
 });
 
-it('only shows upcoming homework due today or later, for the current teacher', function () {
+it('only shows upcoming homework for a séance dated today or later, for the current teacher', function () {
     Carbon::setTestNow(Carbon::create(2026, 7, 12));
 
     $teacher = User::factory()->create();
     $otherTeacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create();
 
-    $upcoming = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->withHomework()->create(['homework_due_date' => '2026-07-15']);
-    $today = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->withHomework()->create(['homework_due_date' => '2026-07-12']);
-    $past = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->withHomework()->create(['homework_due_date' => '2026-07-01']);
-    $noHomework = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create(['homework' => null, 'homework_due_date' => null]);
+    $upcoming = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->withHomework()->create(['date' => '2026-07-15']);
+    $today = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->withHomework()->create(['date' => '2026-07-12']);
+    $past = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->withHomework()->create(['date' => '2026-07-01']);
+    $noHomework = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create(['date' => '2026-07-15', 'homework' => null]);
 
     $otherClass = SchoolClass::factory()->for($otherTeacher)->create();
-    LogbookEntry::factory()->for($otherTeacher)->for($otherClass, 'schoolClass')->withHomework()->create(['homework_due_date' => '2026-07-20']);
+    LogbookEntry::factory()->for($otherTeacher)->for($otherClass, 'schoolClass')->withHomework()->create(['date' => '2026-07-20']);
 
     $this->actingAs($teacher);
 
@@ -118,4 +120,31 @@ it('links a séance to at most one Ecole-Directe occurrence', function () {
 
     expect(fn () => LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create(['ecole_directe_event_id' => $edEvent->id]))
         ->toThrow(QueryException::class);
+});
+
+it('does not offer an already-linked Ecole-Directe séance, but keeps the current record\'s own link visible when editing', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $linkedElsewhere = EcoleDirecteEvent::factory()->for($teacher)->create();
+    $free = EcoleDirecteEvent::factory()->for($teacher)->create();
+    $ownLink = EcoleDirecteEvent::factory()->for($teacher)->create();
+
+    LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create(['ecole_directe_event_id' => $linkedElsewhere->id]);
+    $entry = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create(['ecole_directe_event_id' => $ownLink->id]);
+
+    $this->actingAs($teacher);
+
+    $editOptions = Livewire::test(EditLogbookEntry::class, ['record' => $entry->getRouteKey()])
+        ->instance()->form->getComponent('ecole_directe_event_id')->getOptions();
+
+    expect($editOptions)->toHaveKey($free->id)
+        ->and($editOptions)->toHaveKey($ownLink->id)
+        ->and($editOptions)->not->toHaveKey($linkedElsewhere->id);
+
+    $createOptions = Livewire::test(CreateLogbookEntry::class)
+        ->instance()->form->getComponent('ecole_directe_event_id')->getOptions();
+
+    expect($createOptions)->toHaveKey($free->id)
+        ->and($createOptions)->not->toHaveKey($ownLink->id)
+        ->and($createOptions)->not->toHaveKey($linkedElsewhere->id);
 });

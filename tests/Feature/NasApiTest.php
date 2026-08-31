@@ -119,16 +119,16 @@ it('returns homework due today, excluding entries without homework or due tomorr
     $class->subjects()->attach($subject);
 
     LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->for($subject)->create([
+        'date' => Carbon::today(),
         'homework' => 'Exercices 12 à 15 p.42',
-        'homework_due_date' => Carbon::today(),
     ]);
     LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'date' => Carbon::today(),
         'homework' => null,
-        'homework_due_date' => null,
     ]);
     LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'date' => Carbon::tomorrow(),
         'homework' => 'Pour demain',
-        'homework_due_date' => Carbon::tomorrow(),
     ]);
 
     $token = $teacher->ensureApiToken();

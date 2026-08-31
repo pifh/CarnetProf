@@ -38,6 +38,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     const CALENDAR_FEED_CATEGORIES = [
         'cours',
+        'ecole_directe',
         'reunions_eleves',
         'reunions_rdv',
         'etablissement',

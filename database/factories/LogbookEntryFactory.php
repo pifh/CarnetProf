@@ -32,7 +32,6 @@ class LogbookEntryFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'homework' => fake()->sentence(6),
-            'homework_due_date' => fake()->dateTimeBetween('now', '+2 weeks'),
         ]);
     }
 

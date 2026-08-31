@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['school_class_id', 'subject_id', 'progression_sequence_id', 'ecole_directe_event_id', 'date', 'status', 'content', 'homework', 'homework_due_date'])]
+#[Fillable(['school_class_id', 'subject_id', 'progression_sequence_id', 'ecole_directe_event_id', 'date', 'status', 'content', 'homework'])]
 class LogbookEntry extends Model
 {
     use BelongsToTeacher, HasFactory;
@@ -21,7 +21,6 @@ class LogbookEntry extends Model
     {
         return [
             'date' => 'date',
-            'homework_due_date' => 'date',
         ];
     }
 

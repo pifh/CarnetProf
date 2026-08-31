@@ -86,6 +86,40 @@ it('spans a multi-day all-day CalendarEvent across every date it covers', functi
     expect($item->datesOccupied())->toBe(['2026-08-07', '2026-08-08', '2026-08-09', '2026-08-10']);
 });
 
+it('still resolves a séance whose class has since been archived, instead of erroring', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create(['name' => 'Classe archivée']);
+    $logbookEntry = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')->create(['date' => '2026-09-10']);
+
+    $class->delete();
+
+    $items = app(CalendarItemCollector::class)->forUser($teacher);
+    $item = $items->first(fn ($item) => $item->uid === 'logbook-'.$logbookEntry->id);
+
+    expect($item->title)->toBe('Classe archivée');
+});
+
+it('shows an unattached Ecole-Directe occurrence as its own gray item, but hides one already linked to a séance', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+
+    $linked = EcoleDirecteEvent::factory()->for($teacher)->create(['starts_at' => '2026-09-10 08:00:00']);
+    $unattached = EcoleDirecteEvent::factory()->for($teacher)->create(['starts_at' => '2026-09-10 10:00:00', 'title' => 'Français 5e B']);
+
+    $logbookEntry = LogbookEntry::factory()->for($teacher)->for($class, 'schoolClass')
+        ->create(['ecole_directe_event_id' => $linked->id, 'date' => '2026-09-10']);
+
+    $items = app(CalendarItemCollector::class)->forUser($teacher);
+
+    expect($items->first(fn ($item) => $item->uid === 'ecole-directe-'.$linked->id))->toBeNull()
+        ->and($items->filter(fn ($item) => $item->uid === 'logbook-'.$logbookEntry->id))->toHaveCount(1);
+
+    $unattachedItem = $items->first(fn ($item) => $item->uid === 'ecole-directe-'.$unattached->id);
+    expect($unattachedItem)->not->toBeNull()
+        ->and($unattachedItem->type)->toBe('ecole_directe')
+        ->and($unattachedItem->title)->toBe('Français 5e B');
+});
+
 it('returns a single date for a punctual, non-ranged item', function () {
     $teacher = User::factory()->create();
     $event = CalendarEvent::factory()->for($teacher)->create([

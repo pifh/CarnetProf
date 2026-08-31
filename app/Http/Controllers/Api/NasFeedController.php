@@ -128,7 +128,7 @@ class NasFeedController extends Controller
         $homework = LogbookEntry::query()
             ->where('user_id', $user->id)
             ->whereNotNull('homework')
-            ->whereDate('homework_due_date', $today)
+            ->whereDate('date', $today)
             ->with(['schoolClass', 'subject'])
             ->get()
             ->map(fn (LogbookEntry $entry) => [

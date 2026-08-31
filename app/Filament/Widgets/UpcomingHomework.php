@@ -20,13 +20,13 @@ class UpcomingHomework extends TableWidget
         return $table
             ->query(fn (): Builder => LogbookEntry::query()
                 ->where('user_id', Auth::id())
-                ->whereNotNull('homework_due_date')
-                ->whereDate('homework_due_date', '>=', now())
-                ->orderBy('homework_due_date'))
+                ->whereNotNull('homework')
+                ->whereDate('date', '>=', now())
+                ->orderBy('date'))
             ->paginated(false)
             ->emptyStateHeading('Aucun devoir à venir')
             ->columns([
-                TextColumn::make('homework_due_date')
+                TextColumn::make('date')
                     ->label('À rendre le')
                     ->date('d/m/Y'),
                 TextColumn::make('schoolClass.name')

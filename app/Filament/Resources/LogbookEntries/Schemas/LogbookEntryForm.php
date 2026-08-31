@@ -57,10 +57,17 @@ class LogbookEntryForm
                 Select::make('ecole_directe_event_id')
                     ->label('Séance de l\'emploi du temps (École-Directe)')
                     ->placeholder('Aucune')
-                    ->options(function () {
+                    ->options(function (?LogbookEntry $record) {
                         return EcoleDirecteEvent::query()
                             ->where('user_id', Auth::id())
                             ->whereBetween('starts_at', [now()->subDays(60), now()->addDays(60)])
+                            // Already-linked séances aren't offered again — except
+                            // the one already linked to this record, so editing
+                            // doesn't hide its own current selection.
+                            ->where(function ($query) use ($record) {
+                                $query->whereDoesntHave('logbookEntry')
+                                    ->when($record?->ecole_directe_event_id, fn ($q, $id) => $q->orWhere('id', $id));
+                            })
                             ->orderBy('starts_at')
                             ->get()
                             ->mapWithKeys(fn (EcoleDirecteEvent $event) => [
@@ -103,13 +110,9 @@ class LogbookEntryForm
 
                 Textarea::make('homework')
                     ->label('Travail à faire')
+                    ->helperText('Écrit ici, sur la séance à laquelle ce travail est à faire — la date de la séance sert de date de rendu.')
                     ->rows(3)
                     ->columnSpanFull(),
-
-                DatePicker::make('homework_due_date')
-                    ->label('À rendre pour le')
-                    ->native(false)
-                    ->displayFormat('d/m/Y'),
             ])
             ->columns(2);
     }
