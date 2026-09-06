@@ -91,6 +91,14 @@
             padding: 1mm;
         }
 
+        {{-- A desk permanently blocked on the room layout is an empty
+             space, not an empty table — same footprint (so the rest of the
+             row doesn't shift), but no visible border, so nothing reads as
+             a table there. --}}
+        table.desk td.seat.empty-space {
+            border-color: #ffffff;
+        }
+
         .first-name {
             display: block;
             width: 100%;
@@ -148,17 +156,13 @@
     @foreach ($rowsOfDesks as $rowDesks)
         <div class="room-row">
             @foreach ($rowDesks as $desk)
-                {{-- A desk permanently blocked on the room layout has no
-                     seats of its own — it renders here exactly like any
-                     other desk of the same capacity, just with every seat
-                     left blank. --}}
                 @php($seatIndexes = $printTeacherView ? range($desk->capacity - 1, 0) : range(0, $desk->capacity - 1))
                 <table class="desk">
                     <tr>
                         @foreach ($seatIndexes as $seatIndex)
                             @php($seat = $desk->seats->firstWhere('seat_index', $seatIndex))
                             @php($occupant = $seat?->student)
-                            <td class="seat" style="width: {{ $seatWidthMm }}mm; height: {{ $seatHeightMm }}mm;">
+                            <td @class(['seat', 'empty-space' => $desk->is_blocked]) style="width: {{ $seatWidthMm }}mm; height: {{ $seatHeightMm }}mm;">
                                 @if ($occupant)
                                     <span class="first-name">{{ $occupant->first_name }}</span>
                                     <span class="last-name">{{ $occupant->last_name }}</span>
