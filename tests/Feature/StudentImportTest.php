@@ -85,6 +85,49 @@ it('executes an import, creates students and subgroups, and can be cancelled', f
         ->and(Student::query()->where('user_id', $teacher->id)->count())->toBe(0);
 });
 
+it("updates an existing student's provided fields instead of skipping it, without blanking fields the file doesn't provide, and keeps it on cancel", function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create(['name' => '6e A']);
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'first_name' => 'Camille',
+        'last_name' => 'Dupont',
+        'address' => '4 rue des Lilas',
+        'phone' => null,
+        'email' => null,
+    ]);
+
+    // No "Adresse" column in this file at all — its existing value must survive.
+    $rows = [
+        ['Dupont', 'Camille', '06 12 34 56 78', 'camille.dupont@example.test'],
+    ];
+    $mapping = ['last_name' => 0, 'first_name' => 1, 'phone' => 2, 'email' => 3];
+
+    $service = app(StudentImporter::class);
+    $preview = $service->preview($teacher, $rows, $mapping, $class->id);
+    $import = $service->execute($teacher, 'eleves.csv', $mapping, $class->id, $preview);
+
+    expect($import->imported_rows)->toBe(0)
+        ->and($import->duplicate_rows)->toBe(1)
+        ->and(Student::query()->where('user_id', $teacher->id)->count())->toBe(1);
+
+    $student->refresh();
+    expect($student->phone)->toBe('06 12 34 56 78')
+        ->and($student->email)->toBe('camille.dupont@example.test')
+        ->and($student->address)->toBe('4 rue des Lilas');
+
+    $importRow = $import->rows()->sole();
+    expect($importRow->status)->toBe('duplicate')
+        ->and($importRow->student_id)->toBe($student->id);
+
+    $service->cancel($import);
+
+    expect($import->refresh()->status)->toBe('cancelled')
+        ->and(Student::query()->where('id', $student->id)->exists())->toBeTrue();
+
+    $student->refresh();
+    expect($student->phone)->toBe('06 12 34 56 78');
+});
+
 it('runs the full import wizard end to end', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create(['name' => '6e A']);

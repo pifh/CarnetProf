@@ -223,10 +223,21 @@ class StudentImporter
 
                 if ($row['is_duplicate']) {
                     $duplicates++;
+
+                    $student = $this->findExistingStudent($user, $row['school_class_id'], $row['data']['first_name'], $row['data']['last_name']);
+
+                    if ($student) {
+                        $this->updateExistingStudent($student, $row['data']);
+                        $this->attachSubgroups($student, $row['school_class_id'], $row['data']['subgroup_names'] ?? null);
+                        $this->syncGuardian($student, $row['data'], 'guardian1', isPrimary: true);
+                        $this->syncGuardian($student, $row['data'], 'guardian2', isPrimary: false);
+                    }
+
                     ImportRow::create([
                         'import_id' => $import->id,
                         'row_number' => $row['row_number'],
                         'raw_data' => $row['data'],
+                        'student_id' => $student?->id,
                         'status' => 'duplicate',
                     ]);
 
@@ -275,7 +286,13 @@ class StudentImporter
     public function cancel(Import $import): void
     {
         DB::transaction(function () use ($import) {
-            $studentIds = $import->rows()->whereNotNull('student_id')->pluck('student_id');
+            // Only rows this import actually created ('imported') get their
+            // student deleted — a 'duplicate' row's student_id points at a
+            // pre-existing student this import merely updated, and must
+            // never be deleted just because the import that touched it gets
+            // cancelled (their field updates aren't reverted either; there's
+            // no before/after snapshot to restore them from).
+            $studentIds = $import->rows()->where('status', 'imported')->whereNotNull('student_id')->pluck('student_id');
             Student::query()->whereIn('id', $studentIds)->get()->each->delete();
             $import->update(['status' => 'cancelled']);
         });
@@ -337,6 +354,34 @@ class StudentImporter
     private function isTitleCaseToken(string $token): bool
     {
         return mb_strtoupper($token) !== $token && mb_strtolower($token) !== $token;
+    }
+
+    /**
+     * Updates only the fields the row actually provides a value for, so a
+     * re-import from a file missing some columns (or with blank cells)
+     * never blanks out data already on the existing student's record.
+     */
+    private function updateExistingStudent(Student $student, array $data): void
+    {
+        $attributes = [];
+
+        foreach (['first_name', 'last_name', 'address', 'phone', 'email', 'private_notes'] as $field) {
+            if (! blank($data[$field] ?? null)) {
+                $attributes[$field] = trim($data[$field]);
+            }
+        }
+
+        if (! blank($data['sex'] ?? null)) {
+            $attributes['sex'] = $this->normalizeSex($data['sex']);
+        }
+
+        if (! blank($data['birth_date'] ?? null) && ($parsedDate = $this->parseDate($data['birth_date']))) {
+            $attributes['birth_date'] = $parsedDate;
+        }
+
+        if ($attributes !== []) {
+            $student->update($attributes);
+        }
     }
 
     private function syncGuardian(Student $student, array $data, string $prefix, bool $isPrimary): void

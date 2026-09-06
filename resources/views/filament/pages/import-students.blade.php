@@ -13,7 +13,7 @@
                                 <th class="p-2">Date</th>
                                 <th class="p-2">Fichier</th>
                                 <th class="p-2">Importés</th>
-                                <th class="p-2">Doublons</th>
+                                <th class="p-2">Mis à jour</th>
                                 <th class="p-2">Erreurs</th>
                                 <th class="p-2">Statut</th>
                                 <th class="p-2"></th>
@@ -56,7 +56,7 @@
         <x-filament::section heading="Aperçu avant import">
             <div class="flex gap-3 mb-4">
                 <x-filament::badge color="success">{{ $summary['valid'] }} à importer</x-filament::badge>
-                <x-filament::badge color="warning">{{ $summary['duplicates'] }} doublon(s)</x-filament::badge>
+                <x-filament::badge color="warning">{{ $summary['duplicates'] }} déjà existant(s) (seront mis à jour)</x-filament::badge>
                 <x-filament::badge color="danger">{{ $summary['errors'] }} erreur(s)</x-filament::badge>
             </div>
 
@@ -82,7 +82,7 @@
                                     @if (! empty($row['errors']))
                                         <x-filament::badge color="danger">{{ implode(', ', $row['errors']) }}</x-filament::badge>
                                     @elseif ($row['is_duplicate'])
-                                        <x-filament::badge color="warning">Doublon</x-filament::badge>
+                                        <x-filament::badge color="warning">Déjà existant — sera mis à jour</x-filament::badge>
                                     @else
                                         <x-filament::badge color="success">OK</x-filament::badge>
                                     @endif
@@ -106,7 +106,7 @@
         <x-filament::section heading="Rapport d'import">
             <div class="flex gap-3 mb-4">
                 <x-filament::badge color="success">{{ $completedImport->imported_rows }} importé(s)</x-filament::badge>
-                <x-filament::badge color="warning">{{ $completedImport->duplicate_rows }} doublon(s) ignoré(s)</x-filament::badge>
+                <x-filament::badge color="warning">{{ $completedImport->duplicate_rows }} mis à jour</x-filament::badge>
                 <x-filament::badge color="danger">{{ $completedImport->error_rows }} erreur(s)</x-filament::badge>
             </div>
 
@@ -121,6 +121,10 @@
                     >
                         Annuler cet import
                     </x-filament::button>
+
+                    @if ($completedImport->duplicate_rows > 0)
+                        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Les {{ $completedImport->duplicate_rows }} fiche(s) déjà existante(s) mise(s) à jour par cet import ne seront pas remises dans leur état précédent par une annulation.</p>
+                    @endif
                 </div>
             @endif
 
