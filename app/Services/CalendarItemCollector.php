@@ -47,6 +47,7 @@ class CalendarItemCollector
             ->merge($this->calendarEvents($user, [CalendarEvent::TYPE_REUNION, CalendarEvent::TYPE_RDV], 'reunions_rdv'))
             ->merge($this->calendarEvents($user, [CalendarEvent::TYPE_ETABLISSEMENT], 'etablissement'))
             ->merge($this->calendarEvents($user, [CalendarEvent::TYPE_VACANCES], 'vacances'))
+            ->merge($this->calendarEvents($user, [CalendarEvent::TYPE_DST], 'devoirs_surveilles'))
             ->merge($this->studentBirthdays($user))
             ->merge($this->personalBirthdays($user));
     }

@@ -21,6 +21,8 @@ class CalendarEvent extends Model
 
     const TYPE_VACANCES = 'vacances';
 
+    const TYPE_DST = 'dst';
+
     protected function casts(): array
     {
         return [
@@ -55,6 +57,7 @@ class CalendarEvent extends Model
             self::TYPE_RDV => 'Rendez-vous',
             self::TYPE_ETABLISSEMENT => 'Événement établissement',
             self::TYPE_VACANCES => 'Vacances',
+            self::TYPE_DST => 'DST (devoir surveillé)',
         ];
     }
 }

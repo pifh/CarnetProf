@@ -43,6 +43,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         'reunions_rdv',
         'etablissement',
         'vacances',
+        'devoirs_surveilles',
         'anniversaires_eleves',
         'anniversaires_personnels',
     ];

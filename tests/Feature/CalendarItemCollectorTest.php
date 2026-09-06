@@ -120,6 +120,20 @@ it('shows an unattached Ecole-Directe occurrence as its own gray item, but hides
         ->and($unattachedItem->title)->toBe('Français 5e B');
 });
 
+it('groups a DST calendar event under its own devoirs_surveilles category', function () {
+    $teacher = User::factory()->create();
+    $event = CalendarEvent::factory()->for($teacher)->create([
+        'type' => CalendarEvent::TYPE_DST,
+        'title' => 'DST de physique',
+    ]);
+
+    $items = app(CalendarItemCollector::class)->forUser($teacher);
+    $item = $items->first(fn ($item) => $item->uid === 'calendar-event-'.$event->id);
+
+    expect($item->type)->toBe('devoirs_surveilles')
+        ->and($item->title)->toBe('DST de physique');
+});
+
 it('returns a single date for a punctual, non-ranged item', function () {
     $teacher = User::factory()->create();
     $event = CalendarEvent::factory()->for($teacher)->create([

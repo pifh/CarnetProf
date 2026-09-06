@@ -55,6 +55,25 @@ it('creates a multi-day all-day event with an end date, for vacances', function 
         ->and($event->ends_at->format('Y-m-d'))->toBe('2026-11-02');
 });
 
+it('creates a DST (devoir surveillé) calendar event', function () {
+    $teacher = User::factory()->create();
+    $this->actingAs($teacher);
+
+    Livewire::test(CreateCalendarEvent::class)
+        ->fillForm([
+            'type' => CalendarEvent::TYPE_DST,
+            'title' => 'DST de mathématiques',
+            'all_day' => true,
+            'starts_at' => '2026-09-25',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $event = CalendarEvent::query()->where('title', 'DST de mathématiques')->sole();
+
+    expect($event->type)->toBe(CalendarEvent::TYPE_DST);
+});
+
 it('creates a timed calendar event with a start and end time', function () {
     $teacher = User::factory()->create();
     $this->actingAs($teacher);
