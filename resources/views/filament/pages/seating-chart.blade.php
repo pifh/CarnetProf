@@ -28,8 +28,20 @@
             </a>
 
             @if ($this->currentApplication)
-                <div class="ml-auto flex items-center gap-3">
-                    <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <div class="ml-auto flex items-end gap-3">
+                    <div>
+                        <label class="text-xs text-gray-600 dark:text-gray-400">Taille prénom</label>
+                        <x-filament::input.wrapper class="w-16">
+                            <x-filament::input type="number" min="6" max="30" wire:model.live="firstNameFontSize" />
+                        </x-filament::input.wrapper>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-600 dark:text-gray-400">Taille nom</label>
+                        <x-filament::input.wrapper class="w-16">
+                            <x-filament::input type="number" min="6" max="30" wire:model.live="lastNameFontSize" />
+                        </x-filament::input.wrapper>
+                    </div>
+                    <label class="mb-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                         <input type="checkbox" wire:model="printTeacherView" class="fi-checkbox-input rounded border-gray-300 dark:border-gray-600" />
                         Vue du prof
                     </label>

@@ -102,7 +102,7 @@
         .first-name {
             display: block;
             width: 100%;
-            font-size: 14px;
+            font-size: {{ $firstNameFontSize }}px;
             font-weight: bold;
             color: #111827;
             line-height: 1.4;
@@ -112,7 +112,7 @@
             display: block;
             width: 100%;
             margin-top: 1.5mm;
-            font-size: 8px;
+            font-size: {{ $lastNameFontSize }}px;
             font-weight: normal;
             color: #9ca3af;
         }

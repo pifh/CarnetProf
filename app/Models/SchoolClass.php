@@ -12,10 +12,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
-#[Fillable(['name', 'level', 'school_year', 'color', 'notes', 'is_archived', 'archived_at'])]
+#[Fillable([
+    'name', 'level', 'school_year', 'color', 'notes', 'is_archived', 'archived_at',
+    'seating_pdf_first_name_font_size', 'seating_pdf_last_name_font_size',
+])]
 class SchoolClass extends Model
 {
     use BelongsToTeacher, HasFactory, SoftDeletes;
+
+    public const DEFAULT_SEATING_PDF_FIRST_NAME_FONT_SIZE = 14;
+
+    public const DEFAULT_SEATING_PDF_LAST_NAME_FONT_SIZE = 8;
 
     protected function casts(): array
     {
@@ -23,6 +30,21 @@ class SchoolClass extends Model
             'is_archived' => 'boolean',
             'archived_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Seating-chart PDF font sizes are saved per class (not per plan or per
+     * application) — every plan printed for this class shares the same
+     * choice, until the teacher changes it again.
+     */
+    public function seatingPdfFirstNameFontSizeOrDefault(): int
+    {
+        return $this->seating_pdf_first_name_font_size ?? self::DEFAULT_SEATING_PDF_FIRST_NAME_FONT_SIZE;
+    }
+
+    public function seatingPdfLastNameFontSizeOrDefault(): int
+    {
+        return $this->seating_pdf_last_name_font_size ?? self::DEFAULT_SEATING_PDF_LAST_NAME_FONT_SIZE;
     }
 
     public function subjects(): BelongsToMany

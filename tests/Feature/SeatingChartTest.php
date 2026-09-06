@@ -892,3 +892,33 @@ it('downloads a PDF in "vue du prof" without erroring, defaulting to the student
         ->call('downloadPdf')
         ->assertFileDownloaded(contentType: 'application/pdf');
 });
+
+it('persists the seating-chart PDF font sizes on the class, shared across every plan printed for it', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
+    $planA = SeatingPlan::factory()->for($teacher)->create(['name' => 'Salle A']);
+    $planB = SeatingPlan::factory()->for($teacher)->create(['name' => 'Salle B']);
+    seatingDesk($planA);
+    seatingDesk($planB);
+
+    $this->actingAs($teacher);
+
+    Livewire::test(SeatingChart::class)
+        ->set('planId', $planA->id)
+        ->set('schoolClassId', $class->id)
+        ->assertSet('firstNameFontSize', SchoolClass::DEFAULT_SEATING_PDF_FIRST_NAME_FONT_SIZE)
+        ->assertSet('lastNameFontSize', SchoolClass::DEFAULT_SEATING_PDF_LAST_NAME_FONT_SIZE)
+        ->set('firstNameFontSize', 20)
+        ->set('lastNameFontSize', 6);
+
+    expect($class->fresh()->seating_pdf_first_name_font_size)->toBe(20)
+        ->and($class->fresh()->seating_pdf_last_name_font_size)->toBe(6);
+
+    // Switching to a different room layout for the same class keeps the
+    // saved sizes — they belong to the class, not to any one plan.
+    Livewire::test(SeatingChart::class)
+        ->set('schoolClassId', $class->id)
+        ->set('planId', $planB->id)
+        ->assertSet('firstNameFontSize', 20)
+        ->assertSet('lastNameFontSize', 6);
+});

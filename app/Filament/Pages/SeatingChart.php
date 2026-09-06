@@ -65,6 +65,10 @@ class SeatingChart extends Page
 
     public bool $printTeacherView = false;
 
+    public int $firstNameFontSize = SchoolClass::DEFAULT_SEATING_PDF_FIRST_NAME_FONT_SIZE;
+
+    public int $lastNameFontSize = SchoolClass::DEFAULT_SEATING_PDF_LAST_NAME_FONT_SIZE;
+
     public function mount(): void
     {
         $this->schoolClassId = SchoolClass::query()
@@ -77,6 +81,7 @@ class SeatingChart extends Page
         $this->planId = SeatingPlan::query()->orderBy('name')->value('id');
 
         $this->syncPlanFields();
+        $this->syncSchoolClassFields();
         $this->selectApplicationForPlanAndClass();
     }
 
@@ -84,7 +89,36 @@ class SeatingChart extends Page
     {
         $this->selectedStudentId = null;
         $this->showArchivedApplications = false;
+        $this->syncSchoolClassFields();
         $this->selectApplicationForPlanAndClass();
+    }
+
+    /**
+     * Persisted per class (not per plan or per application) so every plan
+     * printed for a class shares the same font-size choice.
+     */
+    public function updatedFirstNameFontSize(): void
+    {
+        $this->saveSeatingPdfFontSizes();
+    }
+
+    public function updatedLastNameFontSize(): void
+    {
+        $this->saveSeatingPdfFontSizes();
+    }
+
+    private function saveSeatingPdfFontSizes(): void
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+
+        if (! $schoolClass) {
+            return;
+        }
+
+        $schoolClass->update([
+            'seating_pdf_first_name_font_size' => $this->firstNameFontSize,
+            'seating_pdf_last_name_font_size' => $this->lastNameFontSize,
+        ]);
     }
 
     public function updatedPlanId(): void
@@ -167,6 +201,14 @@ class SeatingChart extends Page
         $application = $this->resolveApplication();
 
         $this->effectiveDate = $application?->effective_date?->format('Y-m-d') ?? '';
+    }
+
+    private function syncSchoolClassFields(): void
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+
+        $this->firstNameFontSize = $schoolClass?->seatingPdfFirstNameFontSizeOrDefault() ?? SchoolClass::DEFAULT_SEATING_PDF_FIRST_NAME_FONT_SIZE;
+        $this->lastNameFontSize = $schoolClass?->seatingPdfLastNameFontSizeOrDefault() ?? SchoolClass::DEFAULT_SEATING_PDF_LAST_NAME_FONT_SIZE;
     }
 
     /**
@@ -984,6 +1026,8 @@ class SeatingChart extends Page
             'rowsOfDesks' => $rowsOfDesks,
             'seatWidthMm' => $seatWidthMm,
             'seatHeightMm' => $seatHeightMm,
+            'firstNameFontSize' => $this->firstNameFontSize,
+            'lastNameFontSize' => $this->lastNameFontSize,
         ])->setPaper('a4', 'landscape');
 
         return response()->streamDownload(fn () => print ($pdf->output()), $filename, ['Content-Type' => 'application/pdf']);
