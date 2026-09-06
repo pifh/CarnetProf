@@ -5,7 +5,7 @@
     <title>Plan de classe</title>
     <style>
         @page {
-            size: A4 {{ $orientation }};
+            size: A4 landscape;
             margin: 10mm;
         }
 
@@ -67,9 +67,8 @@
             border-radius: 1mm;
             text-align: center;
             vertical-align: middle;
-            height: 16mm;
-            width: 20mm;
-            font-size: 8px;
+            height: 20mm;
+            width: 28mm;
             padding: 1mm;
         }
 
@@ -81,6 +80,25 @@
         table.desk td.seat.blocked {
             background-color: #e5e7eb;
             color: #6b7280;
+            font-size: 8px;
+        }
+
+        .first-name {
+            display: block;
+            width: 100%;
+            font-size: 15px;
+            font-weight: bold;
+            color: #111827;
+            line-height: 1.1;
+        }
+
+        .last-name {
+            display: block;
+            width: 100%;
+            margin-top: 0.5mm;
+            font-size: 8px;
+            font-weight: normal;
+            color: #9ca3af;
         }
 
         .seat-notes {
@@ -149,7 +167,8 @@
                                             'blocked' => $isBlocked,
                                         ])>
                                             @if ($occupant)
-                                                {{ $occupant->first_name }}<br>{{ $occupant->last_name }}
+                                                <span class="first-name">{{ $occupant->first_name }}</span>
+                                                <span class="last-name">{{ $occupant->last_name }}</span>
                                                 @if ($occupant->seating_notes)
                                                     <span class="seat-notes">{{ $occupant->seating_notes }}</span>
                                                 @endif

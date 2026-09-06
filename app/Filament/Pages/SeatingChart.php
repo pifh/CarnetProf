@@ -905,19 +905,15 @@ class SeatingChart extends Page
             return null;
         }
 
-        $gridSize = $this->getGridSizeProperty();
-        $orientation = $gridSize['cols'] > $gridSize['rows'] ? 'landscape' : 'portrait';
-
         $filename = 'plan-de-classe-'.str($schoolClass->name)->slug().'-'.($application->effective_date?->format('Y-m-d') ?? 'sans-date').'.pdf';
 
         $pdf = Pdf::loadView('pdf.seating-chart', [
             'schoolClass' => $schoolClass,
             'application' => $application,
             'teacherDeskPosition' => $this->teacherDeskPosition,
-            'gridSize' => $gridSize,
+            'gridSize' => $this->getGridSizeProperty(),
             'deskMap' => $this->getDeskMapProperty(),
-            'orientation' => $orientation,
-        ])->setPaper('a4', $orientation);
+        ])->setPaper('a4', 'landscape');
 
         return response()->streamDownload(fn () => print ($pdf->output()), $filename, ['Content-Type' => 'application/pdf']);
     }

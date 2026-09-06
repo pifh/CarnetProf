@@ -853,13 +853,13 @@ it('downloads an A4 PDF of the current seating plan', function () {
         ->assertFileDownloaded(contentType: 'application/pdf');
 });
 
-it('picks a landscape A4 page for a room wider than it is tall', function () {
+it('always uses a landscape A4 page, even for a room taller than it is wide', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
     $plan = SeatingPlan::factory()->for($teacher)->create();
     seatingDesk($plan, 0, 0);
-    seatingDesk($plan, 0, 1);
-    seatingDesk($plan, 0, 2);
+    seatingDesk($plan, 1, 0);
+    seatingDesk($plan, 2, 0);
 
     $this->actingAs($teacher);
 
