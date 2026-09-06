@@ -2,6 +2,7 @@
 
 use App\Filament\Pages\Calendrier;
 use App\Models\CalendarEvent;
+use App\Models\Student;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -116,6 +117,32 @@ it("only shows a teacher's own calendar items", function () {
     $component = Livewire::test(Calendrier::class)->set('cursor', '2026-08-04');
 
     expect($component->instance()->itemsFor(Carbon::parse('2026-08-12')))->toHaveCount(1);
+});
+
+it('hides a category the teacher opted out of via calendar_display_categories, without affecting the ICS feed setting', function () {
+    Carbon::setTestNow(Carbon::create(2026, 8, 12));
+
+    $teacher = User::factory()->create([
+        'calendar_display_categories' => ['etablissement'],
+    ]);
+    Student::factory()->for($teacher)->create(['birth_date' => '2012-08-12', 'is_archived' => false]);
+    CalendarEvent::factory()->for($teacher)->create([
+        'type' => CalendarEvent::TYPE_ETABLISSEMENT,
+        'all_day' => true,
+        'starts_at' => '2026-08-12',
+    ]);
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(Calendrier::class)->set('cursor', '2026-08-04');
+    $items = $component->instance()->itemsFor(Carbon::parse('2026-08-12'));
+
+    expect($items->pluck('type')->all())->toBe(['etablissement'])
+        ->and($items->pluck('type'))->not->toContain('anniversaires_eleves');
+
+    // Untouched: the feed setting stays at its own default (everything).
+    expect($teacher->calendarFeedCategoriesOrDefault())->toContain('anniversaires_eleves');
+
+    Carbon::setTestNow();
 });
 
 it('gives a timed item a top/height proportional to its start time and duration in the day timeline', function () {

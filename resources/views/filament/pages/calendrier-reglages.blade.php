@@ -64,8 +64,26 @@
     </x-filament::section>
 
     <x-filament::section class="mt-6">
+        <x-slot name="heading">Catégories affichées sur le calendrier</x-slot>
+        <x-slot name="description">Décochez ce que vous ne voulez pas voir sur le calendrier de l'application (page "Calendrier"). Sans effet sur le flux d'abonnement externe, réglé séparément ci-dessous.</x-slot>
+
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            @foreach ($this->categoryLabels as $key => $label)
+                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <x-filament::input.checkbox wire:model="displayCategories" value="{{ $key }}" />
+                    {{ $label }}
+                </label>
+            @endforeach
+        </div>
+
+        <x-filament::button class="mt-4" color="gray" wire:click="saveDisplayCategories">
+            Enregistrer les catégories
+        </x-filament::button>
+    </x-filament::section>
+
+    <x-filament::section class="mt-6">
         <x-slot name="heading">Catégories affichées dans le flux</x-slot>
-        <x-slot name="description">Décochez ce dont vous n'avez pas besoin pour ne pas surcharger votre calendrier.</x-slot>
+        <x-slot name="description">Décochez ce dont vous n'avez pas besoin dans votre abonnement calendrier externe (Apple Calendar, Google Calendar...). Sans effet sur l'affichage dans l'application, réglé séparément ci-dessus.</x-slot>
 
         <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             @foreach ($this->categoryLabels as $key => $label)

@@ -25,6 +25,9 @@ class CalendrierReglages extends Page
     /** @var array<int, string> */
     public array $categories = [];
 
+    /** @var array<int, string> */
+    public array $displayCategories = [];
+
     public bool $showBirthdayForm = false;
 
     public ?int $editingBirthdayId = null;
@@ -40,6 +43,7 @@ class CalendrierReglages extends Page
         $user = Auth::user();
         $this->ecoleDirecteIcsUrl = $user->ecole_directe_ics_url;
         $this->categories = $user->calendarFeedCategoriesOrDefault();
+        $this->displayCategories = $user->calendarDisplayCategoriesOrDefault();
     }
 
     /**
@@ -92,6 +96,13 @@ class CalendrierReglages extends Page
     public function saveCategories(): void
     {
         Auth::user()->update(['calendar_feed_categories' => $this->categories]);
+
+        Notification::make()->title('Catégories mises à jour.')->success()->send();
+    }
+
+    public function saveDisplayCategories(): void
+    {
+        Auth::user()->update(['calendar_display_categories' => $this->displayCategories]);
 
         Notification::make()->title('Catégories mises à jour.')->success()->send();
     }

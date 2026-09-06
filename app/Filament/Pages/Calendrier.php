@@ -139,7 +139,10 @@ class Calendrier extends Page
      */
     public function getItemsByDateProperty(): Collection
     {
+        $displayCategories = Auth::user()->calendarDisplayCategoriesOrDefault();
+
         return app(CalendarItemCollector::class)->forUser(Auth::user())
+            ->filter(fn (CalendarItem $item) => in_array($item->type, $displayCategories, true))
             ->flatMap(fn (CalendarItem $item) => collect($item->datesOccupied())->map(fn (string $date) => ['date' => $date, 'item' => $item]))
             ->groupBy('date')
             ->map(fn (Collection $pairs) => $pairs->pluck('item')

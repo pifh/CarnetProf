@@ -37,6 +37,18 @@ it('persists selected feed categories', function () {
     expect($teacher->fresh()->calendar_feed_categories)->toBe(['cours', 'vacances']);
 });
 
+it('persists selected display categories independently from feed categories', function () {
+    $teacher = User::factory()->create();
+    $this->actingAs($teacher);
+
+    Livewire::test(CalendrierReglages::class)
+        ->set('displayCategories', ['cours', 'vacances'])
+        ->call('saveDisplayCategories');
+
+    expect($teacher->fresh()->calendar_display_categories)->toBe(['cours', 'vacances'])
+        ->and($teacher->fresh()->calendar_feed_categories)->toBeNull();
+});
+
 it('saves the Ecole-Directe ICS url encrypted at rest and round-trips correctly', function () {
     $teacher = User::factory()->create();
     $this->actingAs($teacher);
