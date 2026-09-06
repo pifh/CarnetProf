@@ -6,7 +6,7 @@
     <style>
         @page {
             size: A4 landscape;
-            margin: 10mm;
+            margin: 6mm;
         }
 
         body {
@@ -47,9 +47,12 @@
         {{-- Each row is its own block, spaced apart to read as an aisle
              between rows of desks. Desks within a row are laid out with
              `inline-table` (not a shared grid), so a desk's own size never
-             depends on how many desks or seats are elsewhere on the page. --}}
+             depends on how many desks or seats are elsewhere on the page —
+             and centered, so a row narrower than the page isn't left
+             stranded against the margin. --}}
         .room-row {
             margin-bottom: 8mm;
+            text-align: center;
         }
 
         table.desk {
