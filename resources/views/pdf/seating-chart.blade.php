@@ -110,7 +110,7 @@
                  gap before the last name grows with it instead of staying a
                  fixed distance that a bigger font (or a descender) eats
                  into. --}}
-            padding-bottom: 0.3em;
+            padding-bottom: 0.5em;
         }
 
         .last-name {
