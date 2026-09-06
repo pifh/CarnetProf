@@ -56,7 +56,7 @@
         <x-filament::section heading="Aperçu avant import">
             <div class="flex gap-3 mb-4">
                 <x-filament::badge color="success">{{ $summary['valid'] }} à importer</x-filament::badge>
-                <x-filament::badge color="warning">{{ $summary['duplicates'] }} déjà existant(s) (seront mis à jour)</x-filament::badge>
+                <x-filament::badge color="info">{{ $summary['duplicates'] }} déjà existant(s) (seront mis à jour)</x-filament::badge>
                 <x-filament::badge color="danger">{{ $summary['errors'] }} erreur(s)</x-filament::badge>
             </div>
 
@@ -82,7 +82,7 @@
                                     @if (! empty($row['errors']))
                                         <x-filament::badge color="danger">{{ implode(', ', $row['errors']) }}</x-filament::badge>
                                     @elseif ($row['is_duplicate'])
-                                        <x-filament::badge color="warning">Déjà existant — sera mis à jour</x-filament::badge>
+                                        <x-filament::badge color="info">Déjà existant — sera mis à jour</x-filament::badge>
                                     @else
                                         <x-filament::badge color="success">OK</x-filament::badge>
                                     @endif
@@ -94,8 +94,9 @@
             </div>
 
             <div class="flex gap-2 mt-4">
-                <x-filament::button wire:click="confirmImport" :disabled="$summary['valid'] === 0">
-                    Confirmer l'import ({{ $summary['valid'] }} élève{{ $summary['valid'] > 1 ? 's' : '' }})
+                <x-filament::button wire:click="confirmImport" :disabled="$summary['valid'] === 0 && $summary['duplicates'] === 0">
+                    Confirmer l'import
+                    ({{ $summary['valid'] }} à créer, {{ $summary['duplicates'] }} à mettre à jour)
                 </x-filament::button>
                 <x-filament::button color="gray" wire:click="restart">
                     Recommencer
@@ -106,7 +107,7 @@
         <x-filament::section heading="Rapport d'import">
             <div class="flex gap-3 mb-4">
                 <x-filament::badge color="success">{{ $completedImport->imported_rows }} importé(s)</x-filament::badge>
-                <x-filament::badge color="warning">{{ $completedImport->duplicate_rows }} mis à jour</x-filament::badge>
+                <x-filament::badge color="info">{{ $completedImport->duplicate_rows }} mis à jour</x-filament::badge>
                 <x-filament::badge color="danger">{{ $completedImport->error_rows }} erreur(s)</x-filament::badge>
             </div>
 

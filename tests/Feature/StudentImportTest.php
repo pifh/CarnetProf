@@ -128,6 +128,45 @@ it("updates an existing student's provided fields instead of skipping it, withou
     expect($student->phone)->toBe('06 12 34 56 78');
 });
 
+it('lets the wizard confirm a file made entirely of already-existing students (nothing new to create)', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create(['name' => '6e A']);
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'first_name' => 'Camille',
+        'last_name' => 'Dupont',
+        'phone' => null,
+    ]);
+
+    $this->actingAs($teacher);
+
+    $csv = implode("\n", ['Nom,Prenom,Telephone', 'Dupont,Camille,0611223344']);
+    $file = UploadedFile::fake()->createWithContent('eleves.csv', $csv);
+
+    $component = Livewire::test(ImportStudents::class)
+        ->set('data.school_class_id', $class->id)
+        ->set('data.file', $file)
+        ->set('data.mapping.0', 'last_name')
+        ->set('data.mapping.1', 'first_name')
+        ->set('data.mapping.2', 'phone')
+        ->call('analyze');
+
+    $summary = $component->instance()->getPreviewSummary();
+    expect($summary['valid'])->toBe(0)
+        ->and($summary['duplicates'])->toBe(1);
+
+    // confirmImport must still do real work here — an all-duplicates file
+    // has nothing new to create, but updating existing students is real
+    // work too, and the page must let a teacher confirm it either way.
+    $component->call('confirmImport');
+
+    expect($component->get('phase'))->toBe('report');
+    $import = $component->get('completedImport');
+    expect($import->imported_rows)->toBe(0)
+        ->and($import->duplicate_rows)->toBe(1);
+
+    expect($student->fresh()->phone)->toBe('0611223344');
+});
+
 it('runs the full import wizard end to end', function () {
     $teacher = User::factory()->create();
     $class = SchoolClass::factory()->for($teacher)->create(['name' => '6e A']);
