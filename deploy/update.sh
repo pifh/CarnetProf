@@ -69,6 +69,19 @@ echo "==> Installation des dépendances PHP"
 
 echo "==> Installation des dépendances front-end et build"
 "$NPM_BIN" ci
+sync
+
+# node_modules/.bin/vite has been observed missing to the very next command
+# right after `npm ci` reports success — a filesystem consistency lag on
+# this host (confirmed: the exact same "npm run build" works fine run by
+# hand a few seconds later), not a real install failure. Wait for it
+# rather than fail instantly on what's usually just a race.
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    [ -e node_modules/.bin/vite ] && break
+    echo "==> En attente de node_modules/.bin/vite..."
+    sleep 1
+done
+
 "$NPM_BIN" run build
 
 echo "==> Migrations de base de données"
