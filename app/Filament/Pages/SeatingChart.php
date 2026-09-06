@@ -905,14 +905,67 @@ class SeatingChart extends Page
             return null;
         }
 
+        $gridSize = $this->getGridSizeProperty();
+        $deskMap = $this->getDeskMapProperty();
+
+        // A desk marked "blocked" on the room layout is a permanent
+        // architectural void — no table there at all — so it's left out of
+        // the print entirely, unlike a real (unblocked) desk that simply has
+        // no student in it right now, which still prints as an empty table.
+        // Columns are reversed within each row (and each desk's own seats
+        // reversed the same way) because the room layout is edited from the
+        // door-facing side of the room, but a printed plan is meant to be
+        // read as the teacher sees it standing at their own desk, facing the
+        // students — a mirror image, left and right swapped.
+        $rowsOfDesks = [];
+        for ($row = 0; $row < $gridSize['rows']; $row++) {
+            $rowDesks = $deskMap->values()
+                ->where('position_row', $row)
+                ->reject(fn (SeatingPlanDesk $desk) => $desk->is_blocked)
+                ->sortByDesc('position_col')
+                ->values();
+
+            if ($rowDesks->isNotEmpty()) {
+                $rowsOfDesks[] = $rowDesks;
+            }
+        }
+
+        $maxRowUnits = collect($rowsOfDesks)->map(fn ($rowDesks) => $rowDesks->sum('capacity'))->max() ?? 0;
+        $maxDesksInRow = collect($rowsOfDesks)->map(fn ($rowDesks) => $rowDesks->count())->max() ?? 0;
+        $rowCount = count($rowsOfDesks);
+
+        // A4 landscape usable area (297×210mm minus the 10mm page margins),
+        // minus roughly the space the title/date/teacher-desk banner take
+        // above the grid — stretched to fill exactly that area, so the plan
+        // never sits shrunk in a corner of the page.
+        $availableWidthMm = 277.0;
+        $availableHeightMm = 140.0;
+        $deskGapMm = 6.0;
+        $rowGapMm = 8.0;
+
+        $seatWidthMm = $maxRowUnits > 0
+            ? min(60.0, max(18.0, ($availableWidthMm - max(0, $maxDesksInRow - 1) * $deskGapMm) / $maxRowUnits))
+            : 25.0;
+
+        $seatHeightMm = $rowCount > 0
+            ? min(45.0, max(14.0, ($availableHeightMm - max(0, $rowCount - 1) * $rowGapMm) / $rowCount))
+            : 18.0;
+
+        $teacherDeskPosition = match ($this->teacherDeskPosition) {
+            'left' => 'right',
+            'right' => 'left',
+            default => $this->teacherDeskPosition,
+        };
+
         $filename = 'plan-de-classe-'.str($schoolClass->name)->slug().'-'.($application->effective_date?->format('Y-m-d') ?? 'sans-date').'.pdf';
 
         $pdf = Pdf::loadView('pdf.seating-chart', [
             'schoolClass' => $schoolClass,
             'application' => $application,
-            'teacherDeskPosition' => $this->teacherDeskPosition,
-            'gridSize' => $this->getGridSizeProperty(),
-            'deskMap' => $this->getDeskMapProperty(),
+            'teacherDeskPosition' => $teacherDeskPosition,
+            'rowsOfDesks' => $rowsOfDesks,
+            'seatWidthMm' => $seatWidthMm,
+            'seatHeightMm' => $seatHeightMm,
         ])->setPaper('a4', 'landscape');
 
         return response()->streamDownload(fn () => print ($pdf->output()), $filename, ['Content-Type' => 'application/pdf']);
