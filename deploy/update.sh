@@ -82,6 +82,18 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
     sleep 1
 done
 
+# Temporaire : le fichier existe (confirmé) mais "npm run build" ne le
+# trouve pas via son PATH interne — ces lignes servent uniquement à
+# diagnostiquer pourquoi avant d'aller plus loin, sans relancer un build.
+echo "==> DEBUG pwd=$(pwd)"
+echo "==> DEBUG whoami=$(whoami) id=$(id)"
+echo "==> DEBUG PATH=$PATH"
+echo "==> DEBUG node_modules/.bin/vite: $(ls -la node_modules/.bin/vite 2>&1)"
+echo "==> DEBUG PATH as seen inside an npm-spawned shell:"
+"$NPM_BIN" exec -- sh -c 'echo $PATH' 2>&1 || true
+echo "==> DEBUG vite via npm exec:"
+"$NPM_BIN" exec -- which vite 2>&1 || true
+
 "$NPM_BIN" run build
 
 echo "==> Migrations de base de données"
