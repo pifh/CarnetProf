@@ -106,12 +106,16 @@
             font-weight: bold;
             color: #111827;
             line-height: 1.4;
+            {{-- `em` here scales with this element's own font-size, so the
+                 gap before the last name grows with it instead of staying a
+                 fixed distance that a bigger font (or a descender) eats
+                 into. --}}
+            padding-bottom: 0.3em;
         }
 
         .last-name {
             display: block;
             width: 100%;
-            margin-top: 1.5mm;
             font-size: {{ $lastNameFontSize }}px;
             font-weight: normal;
             color: #9ca3af;
