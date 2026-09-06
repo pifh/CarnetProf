@@ -15,14 +15,16 @@
             color: #1f2937;
         }
 
-        h1 {
-            font-size: 15px;
-            margin: 0 0 1mm;
-        }
-
-        .meta {
-            color: #4b5563;
-            margin-bottom: 6mm;
+        {{-- `position: fixed` repeats this on every page, at the bottom of
+             the printable area — dompdf's usual way of doing a page footer. --}}
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 7px;
+            color: #9ca3af;
         }
 
         .teacher-desk-row {
@@ -104,9 +106,8 @@
     </style>
 </head>
 <body>
-    <h1>Plan de classe — {{ $schoolClass->name }}</h1>
-    <div class="meta">
-        {{ $application->effective_date?->format('d/m/Y') ?? 'Sans date' }}
+    <div class="footer">
+        Plan de classe — {{ $schoolClass->name }} · {{ $application->effective_date?->format('d/m/Y') ?? 'Sans date' }}
     </div>
 
     @if ($teacherDeskPosition)
