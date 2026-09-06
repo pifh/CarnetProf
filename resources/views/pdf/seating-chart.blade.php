@@ -55,6 +55,14 @@
         .room-row {
             margin-bottom: 8mm;
             text-align: center;
+            {{-- Zeroes the inline "strut" line box a row of inline-table
+                 desks would otherwise reserve on top of their own height. --}}
+            font-size: 0;
+            line-height: 0;
+        }
+
+        .room-row:last-child {
+            margin-bottom: 0;
         }
 
         table.desk {
@@ -65,16 +73,14 @@
             vertical-align: top;
         }
 
-        {{-- Fixed regardless of the desk's capacity, so a lone seat and a
-             seat sharing a desk with three others are exactly the same
-             size. --}}
+        {{-- Width/height set inline per seat (see below): fixed for every
+             seat on the page, computed once to stretch the whole plan
+             across the available print area. --}}
         table.desk td.seat {
             border: 0.3mm solid #9ca3af;
             border-radius: 1mm;
             text-align: center;
             vertical-align: middle;
-            width: 25mm;
-            height: 18mm;
             padding: 1mm;
         }
 
@@ -132,36 +138,32 @@
         </table>
     @endif
 
-    @for ($row = 0; $row < $gridSize['rows']; $row++)
-        @php($rowDesks = $deskMap->values()->where('position_row', $row)->sortBy('position_col'))
-
-        @if ($rowDesks->isNotEmpty())
-            <div class="room-row">
-                @foreach ($rowDesks as $desk)
-                    {{-- A desk permanently blocked on the room layout has no
-                         seats of its own — it renders here exactly like any
-                         other desk of the same capacity, just with every
-                         seat left blank. --}}
-                    <table class="desk">
-                        <tr>
-                            @for ($seatIndex = 0; $seatIndex < $desk->capacity; $seatIndex++)
-                                @php($seat = $desk->seats->firstWhere('seat_index', $seatIndex))
-                                @php($occupant = $seat?->student)
-                                <td class="seat">
-                                    @if ($occupant)
-                                        <span class="first-name">{{ $occupant->first_name }}</span>
-                                        <span class="last-name">{{ $occupant->last_name }}</span>
-                                        @if ($occupant->seating_notes)
-                                            <span class="seat-notes">{{ $occupant->seating_notes }}</span>
-                                        @endif
+    @foreach ($rowsOfDesks as $rowDesks)
+        <div class="room-row">
+            @foreach ($rowDesks as $desk)
+                {{-- A desk permanently blocked on the room layout has no
+                     seats of its own — it renders here exactly like any
+                     other desk of the same capacity, just with every seat
+                     left blank. --}}
+                <table class="desk">
+                    <tr>
+                        @for ($seatIndex = 0; $seatIndex < $desk->capacity; $seatIndex++)
+                            @php($seat = $desk->seats->firstWhere('seat_index', $seatIndex))
+                            @php($occupant = $seat?->student)
+                            <td class="seat" style="width: {{ $seatWidthMm }}mm; height: {{ $seatHeightMm }}mm;">
+                                @if ($occupant)
+                                    <span class="first-name">{{ $occupant->first_name }}</span>
+                                    <span class="last-name">{{ $occupant->last_name }}</span>
+                                    @if ($occupant->seating_notes)
+                                        <span class="seat-notes">{{ $occupant->seating_notes }}</span>
                                     @endif
-                                </td>
-                            @endfor
-                        </tr>
-                    </table>
-                @endforeach
-            </div>
-        @endif
-    @endfor
+                                @endif
+                            </td>
+                        @endfor
+                    </tr>
+                </table>
+            @endforeach
+        </div>
+    @endforeach
 </body>
 </html>

@@ -905,14 +905,58 @@ class SeatingChart extends Page
             return null;
         }
 
+        $gridSize = $this->getGridSizeProperty();
+        $deskMap = $this->getDeskMapProperty();
+
+        $rowsOfDesks = [];
+        for ($row = 0; $row < $gridSize['rows']; $row++) {
+            $rowDesks = $deskMap->values()->where('position_row', $row)->sortBy('position_col')->values();
+
+            if ($rowDesks->isNotEmpty()) {
+                $rowsOfDesks[] = $rowDesks;
+            }
+        }
+
+        $maxRowUnits = collect($rowsOfDesks)->map(fn ($rowDesks) => $rowDesks->sum('capacity'))->max() ?? 0;
+        $maxDesksInRow = collect($rowsOfDesks)->map(fn ($rowDesks) => $rowDesks->count())->max() ?? 0;
+        $rowCount = count($rowsOfDesks);
+
+        // A4 landscape usable area (297×210mm minus the 6mm page margins),
+        // minus roughly the space the teacher-desk banner takes above the
+        // grid and the footer below it, and a small safety margin — seats
+        // are stretched to fill that area, so the plan never sits shrunk in
+        // a corner of the page.
+        $availableWidthMm = 283.0;
+        $availableHeightMm = 196.0 - ($this->teacherDeskPosition ? 17.0 : 0.0) - 6.0;
+        $deskGapMm = 6.0;
+        $rowGapMm = 8.0;
+
+        // Each seat's own padding and border sit outside the width/height we
+        // set on it (content-box sizing — box-sizing: border-box doesn't
+        // reliably apply to table cells), so that overhead has to come back
+        // out of the raw per-seat share before it's used as the CSS value.
+        $cellOverheadMm = 2.6;
+
+        // Every desk carries its own 6mm trailing gap (including the last
+        // one in a row), so the row's total gap budget is one per desk, not
+        // one per gap between them.
+        $seatWidthMm = $maxRowUnits > 0
+            ? min(55.0, max(18.0, ($availableWidthMm - $maxDesksInRow * $deskGapMm) / $maxRowUnits - $cellOverheadMm))
+            : 25.0;
+
+        $seatHeightMm = $rowCount > 0
+            ? min(42.0, max(14.0, ($availableHeightMm - max(0, $rowCount - 1) * $rowGapMm) / $rowCount - $cellOverheadMm))
+            : 18.0;
+
         $filename = 'plan-de-classe-'.str($schoolClass->name)->slug().'-'.($application->effective_date?->format('Y-m-d') ?? 'sans-date').'.pdf';
 
         $pdf = Pdf::loadView('pdf.seating-chart', [
             'schoolClass' => $schoolClass,
             'application' => $application,
             'teacherDeskPosition' => $this->teacherDeskPosition,
-            'gridSize' => $this->getGridSizeProperty(),
-            'deskMap' => $this->getDeskMapProperty(),
+            'rowsOfDesks' => $rowsOfDesks,
+            'seatWidthMm' => $seatWidthMm,
+            'seatHeightMm' => $seatHeightMm,
         ])->setPaper('a4', 'landscape');
 
         return response()->streamDownload(fn () => print ($pdf->output()), $filename, ['Content-Type' => 'application/pdf']);
