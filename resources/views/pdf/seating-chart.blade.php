@@ -22,12 +22,12 @@
 
         .meta {
             color: #4b5563;
-            margin-bottom: 5mm;
+            margin-bottom: 6mm;
         }
 
         .teacher-desk-row {
             width: 100%;
-            margin-bottom: 5mm;
+            margin-bottom: 8mm;
         }
 
         .teacher-desk-row td {
@@ -44,49 +44,39 @@
             font-weight: bold;
         }
 
-        table.grid {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 2mm;
-            table-layout: fixed;
-        }
-
-        table.grid td.desk-cell {
-            vertical-align: top;
-            padding: 0;
+        {{-- Each row is its own block, spaced apart to read as an aisle
+             between rows of desks. Desks within a row are laid out with
+             `inline-table` (not a shared grid), so a desk's own size never
+             depends on how many desks or seats are elsewhere on the page. --}}
+        .room-row {
+            margin-bottom: 8mm;
         }
 
         table.desk {
-            width: 100%;
+            display: inline-table;
             border-collapse: separate;
-            border-spacing: 0.8mm;
+            border-spacing: 0;
+            margin-right: 6mm;
+            vertical-align: top;
         }
 
+        {{-- Fixed regardless of the desk's capacity, so a lone seat and a
+             seat sharing a desk with three others are exactly the same
+             size. --}}
         table.desk td.seat {
             border: 0.3mm solid #9ca3af;
             border-radius: 1mm;
             text-align: center;
             vertical-align: middle;
-            height: 20mm;
-            width: 28mm;
+            width: 25mm;
+            height: 18mm;
             padding: 1mm;
-        }
-
-        table.desk td.seat.empty {
-            color: #9ca3af;
-            border-style: dashed;
-        }
-
-        table.desk td.seat.blocked {
-            background-color: #e5e7eb;
-            color: #6b7280;
-            font-size: 8px;
         }
 
         .first-name {
             display: block;
             width: 100%;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: bold;
             color: #111827;
             line-height: 1.1;
@@ -107,14 +97,6 @@
             font-size: 6px;
             font-weight: normal;
             color: #6b7280;
-        }
-
-        .empty-desk {
-            border: 0.3mm dashed #9ca3af;
-            color: #9ca3af;
-            text-align: center;
-            font-size: 8px;
-            padding: 6mm 0;
         }
     </style>
 </head>
@@ -146,44 +128,36 @@
         </table>
     @endif
 
-    <table class="grid">
-        @for ($row = 0; $row < $gridSize['rows']; $row++)
-            <tr>
-                @for ($col = 0; $col < $gridSize['cols']; $col++)
-                    @php($desk = $deskMap->get($row.'-'.$col))
-                    <td class="desk-cell">
-                        @if ($desk && $desk->is_blocked)
-                            <div class="empty-desk">Emplacement vide</div>
-                        @elseif ($desk)
-                            <table class="desk">
-                                <tr>
-                                    @for ($seatIndex = 0; $seatIndex < $desk->capacity; $seatIndex++)
-                                        @php($seat = $desk->seats->firstWhere('seat_index', $seatIndex))
-                                        @php($occupant = $seat?->student)
-                                        @php($isBlocked = $seat?->is_blocked ?? false)
-                                        <td @class([
-                                            'seat',
-                                            'empty' => ! $occupant && ! $isBlocked,
-                                            'blocked' => $isBlocked,
-                                        ])>
-                                            @if ($occupant)
-                                                <span class="first-name">{{ $occupant->first_name }}</span>
-                                                <span class="last-name">{{ $occupant->last_name }}</span>
-                                                @if ($occupant->seating_notes)
-                                                    <span class="seat-notes">{{ $occupant->seating_notes }}</span>
-                                                @endif
-                                            @elseif ($isBlocked)
-                                                Bloqué
-                                            @endif
-                                        </td>
-                                    @endfor
-                                </tr>
-                            </table>
-                        @endif
-                    </td>
-                @endfor
-            </tr>
-        @endfor
-    </table>
+    @for ($row = 0; $row < $gridSize['rows']; $row++)
+        @php($rowDesks = $deskMap->values()->where('position_row', $row)->sortBy('position_col'))
+
+        @if ($rowDesks->isNotEmpty())
+            <div class="room-row">
+                @foreach ($rowDesks as $desk)
+                    {{-- A desk permanently blocked on the room layout has no
+                         seats of its own — it renders here exactly like any
+                         other desk of the same capacity, just with every
+                         seat left blank. --}}
+                    <table class="desk">
+                        <tr>
+                            @for ($seatIndex = 0; $seatIndex < $desk->capacity; $seatIndex++)
+                                @php($seat = $desk->seats->firstWhere('seat_index', $seatIndex))
+                                @php($occupant = $seat?->student)
+                                <td class="seat">
+                                    @if ($occupant)
+                                        <span class="first-name">{{ $occupant->first_name }}</span>
+                                        <span class="last-name">{{ $occupant->last_name }}</span>
+                                        @if ($occupant->seating_notes)
+                                            <span class="seat-notes">{{ $occupant->seating_notes }}</span>
+                                        @endif
+                                    @endif
+                                </td>
+                            @endfor
+                        </tr>
+                    </table>
+                @endforeach
+            </div>
+        @endif
+    @endfor
 </body>
 </html>
