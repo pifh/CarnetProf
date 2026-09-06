@@ -29,7 +29,14 @@
 
         .teacher-desk-row {
             width: 100%;
+        }
+
+        .teacher-desk-row.above {
             margin-bottom: 8mm;
+        }
+
+        .teacher-desk-row.below {
+            margin-top: 8mm;
         }
 
         .teacher-desk-row td {
@@ -116,8 +123,8 @@
         Plan de classe — {{ $schoolClass->name }} · {{ $application->effective_date?->format('d/m/Y') ?? 'Sans date' }}
     </div>
 
-    @if ($teacherDeskPosition)
-        <table class="teacher-desk-row">
+    @if ($teacherDeskPosition && ! $printTeacherView)
+        <table class="teacher-desk-row above">
             <tr>
                 <td style="text-align: left;">
                     @if ($teacherDeskPosition === 'left')
@@ -145,9 +152,10 @@
                      seats of its own — it renders here exactly like any
                      other desk of the same capacity, just with every seat
                      left blank. --}}
+                @php($seatIndexes = $printTeacherView ? range($desk->capacity - 1, 0) : range(0, $desk->capacity - 1))
                 <table class="desk">
                     <tr>
-                        @for ($seatIndex = 0; $seatIndex < $desk->capacity; $seatIndex++)
+                        @foreach ($seatIndexes as $seatIndex)
                             @php($seat = $desk->seats->firstWhere('seat_index', $seatIndex))
                             @php($occupant = $seat?->student)
                             <td class="seat" style="width: {{ $seatWidthMm }}mm; height: {{ $seatHeightMm }}mm;">
@@ -159,11 +167,33 @@
                                     @endif
                                 @endif
                             </td>
-                        @endfor
+                        @endforeach
                     </tr>
                 </table>
             @endforeach
         </div>
     @endforeach
+
+    @if ($teacherDeskPosition && $printTeacherView)
+        <table class="teacher-desk-row below">
+            <tr>
+                <td style="text-align: left;">
+                    @if ($teacherDeskPosition === 'left')
+                        <span class="teacher-desk">Bureau du professeur</span>
+                    @endif
+                </td>
+                <td style="text-align: center;">
+                    @if ($teacherDeskPosition === 'center')
+                        <span class="teacher-desk">Bureau du professeur</span>
+                    @endif
+                </td>
+                <td style="text-align: right;">
+                    @if ($teacherDeskPosition === 'right')
+                        <span class="teacher-desk">Bureau du professeur</span>
+                    @endif
+                </td>
+            </tr>
+        </table>
+    @endif
 </body>
 </html>

@@ -63,6 +63,8 @@ class SeatingChart extends Page
 
     public int $heightMarginCm = 10;
 
+    public bool $printTeacherView = false;
+
     public function mount(): void
     {
         $this->schoolClassId = SchoolClass::query()
@@ -908,9 +910,22 @@ class SeatingChart extends Page
         $gridSize = $this->getGridSizeProperty();
         $deskMap = $this->getDeskMapProperty();
 
+        // "Vue du prof" is a full 180° turn of the room: the row nearest the
+        // teacher's desk ends up farthest on the page (and vice versa), and
+        // every row reads right-to-left instead of left-to-right — matching
+        // what the teacher actually sees standing at their own desk facing
+        // the students, instead of the default "vue des élèves" (the desk
+        // out in front, as edited on the room layout).
+        $rows = $this->printTeacherView
+            ? range($gridSize['rows'] - 1, 0)
+            : range(0, $gridSize['rows'] - 1);
+
         $rowsOfDesks = [];
-        for ($row = 0; $row < $gridSize['rows']; $row++) {
-            $rowDesks = $deskMap->values()->where('position_row', $row)->sortBy('position_col')->values();
+        foreach ($rows as $row) {
+            $rowDesks = $deskMap->values()->where('position_row', $row);
+            $rowDesks = $this->printTeacherView
+                ? $rowDesks->sortByDesc('position_col')->values()
+                : $rowDesks->sortBy('position_col')->values();
 
             if ($rowDesks->isNotEmpty()) {
                 $rowsOfDesks[] = $rowDesks;
@@ -948,12 +963,24 @@ class SeatingChart extends Page
             ? min(42.0, max(14.0, ($availableHeightMm - max(0, $rowCount - 1) * $rowGapMm) / $rowCount - $cellOverheadMm))
             : 18.0;
 
+        // Left and right swap along with everything else in the 180° turn;
+        // the desk itself moves from above the grid to below it (see the
+        // view), so "center" is the only position unaffected either way.
+        $teacherDeskPosition = $this->printTeacherView
+            ? match ($this->teacherDeskPosition) {
+                'left' => 'right',
+                'right' => 'left',
+                default => $this->teacherDeskPosition,
+            }
+        : $this->teacherDeskPosition;
+
         $filename = 'plan-de-classe-'.str($schoolClass->name)->slug().'-'.($application->effective_date?->format('Y-m-d') ?? 'sans-date').'.pdf';
 
         $pdf = Pdf::loadView('pdf.seating-chart', [
             'schoolClass' => $schoolClass,
             'application' => $application,
-            'teacherDeskPosition' => $this->teacherDeskPosition,
+            'teacherDeskPosition' => $teacherDeskPosition,
+            'printTeacherView' => $this->printTeacherView,
             'rowsOfDesks' => $rowsOfDesks,
             'seatWidthMm' => $seatWidthMm,
             'seatHeightMm' => $seatHeightMm,

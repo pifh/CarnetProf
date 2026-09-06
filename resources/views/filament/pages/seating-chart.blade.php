@@ -28,9 +28,15 @@
             </a>
 
             @if ($this->currentApplication)
-                <x-filament::button color="gray" wire:click="downloadPdf" class="ml-auto">
-                    Télécharger en PDF (A4)
-                </x-filament::button>
+                <div class="ml-auto flex items-center gap-3">
+                    <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                        <input type="checkbox" wire:model="printTeacherView" class="fi-checkbox-input rounded border-gray-300 dark:border-gray-600" />
+                        Vue du prof
+                    </label>
+                    <x-filament::button color="gray" wire:click="downloadPdf">
+                        Télécharger en PDF (A4)
+                    </x-filament::button>
+                </div>
             @endif
         </div>
 

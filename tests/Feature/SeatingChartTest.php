@@ -869,3 +869,26 @@ it('always uses a landscape A4 page, even for a room taller than it is wide', fu
         ->call('downloadPdf')
         ->assertFileDownloaded(contentType: 'application/pdf');
 });
+
+it('downloads a PDF in "vue du prof" without erroring, defaulting to the students\' view', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create(['teacher_desk_position' => 'left']);
+    seatingDesk($plan, 0, 0);
+    seatingDesk($plan, 0, 1);
+    seatingDesk($plan, 1, 0);
+
+    $this->actingAs($teacher);
+
+    $component = Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id);
+
+    $component->assertSet('printTeacherView', false)
+        ->call('downloadPdf')
+        ->assertFileDownloaded(contentType: 'application/pdf');
+
+    $component->set('printTeacherView', true)
+        ->call('downloadPdf')
+        ->assertFileDownloaded(contentType: 'application/pdf');
+});
