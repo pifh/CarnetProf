@@ -72,13 +72,24 @@ class SiteUpdater
      */
     public function runUpdate(): array
     {
+        $logPath = storage_path('logs/deploy-update.log');
+        $offset = is_file($logPath) ? filesize($logPath) : 0;
+
         $result = Process::path(base_path())
             ->timeout(config('deploy.timeout'))
             ->run(['bash', 'deploy/update.sh']);
 
+        // deploy/update.sh redirects its own output straight to that log
+        // file rather than back to us (see the script for why), so read
+        // back whatever it appended during this run instead of
+        // $result->output(), which is empty by design. Falls back to the
+        // captured process output for a failure so early that the script
+        // never got to open the log itself (e.g. "bash" not found).
+        $output = is_file($logPath) ? trim(substr(file_get_contents($logPath), $offset)) : '';
+
         return [
             'successful' => $result->successful(),
-            'output' => trim($result->output()."\n".$result->errorOutput()),
+            'output' => $output !== '' ? $output : trim($result->output()."\n".$result->errorOutput()),
             'exit_code' => $result->exitCode(),
         ];
     }

@@ -18,16 +18,19 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# Duplicates all output (this script's own + every command it runs) to a
-# durable log file as it happens, in addition to the normal stdout/stderr
-# that App\Services\SiteUpdater captures and shows on the "Mises à jour"
-# page. The point is diagnosing a run that gets killed mid-way (e.g. by
-# PHP's own max_execution_time) before that page ever gets a response to
-# display: whatever was written before the kill survives here regardless,
-# so `tail storage/logs/deploy-update.log` shows exactly the last step
-# reached even when the admin page shows nothing at all.
+# Every line this script (and everything it runs) prints goes only to this
+# log file from here on — not back to whatever invoked the script — so the
+# last step reached always survives on disk even if the process is killed
+# mid-way (e.g. by PHP's own max_execution_time) before App\Services\
+# SiteUpdater's Process::run() ever gets a captured result to show on the
+# "Mises à jour" page. A plain file redirect rather than `tee`/process
+# substitution: piping this script's stdout through a subshell broke npm's
+# own PATH resolution for the child shell it spawns to run "vite build"
+# (reproduced directly: same command works stand-alone, fails only through
+# that redirection) — not worth it just to also mirror output live to the
+# caller, which SiteUpdater reads back from this same file instead.
 mkdir -p storage/logs
-exec > >(tee -a storage/logs/deploy-update.log) 2>&1
+exec >> storage/logs/deploy-update.log 2>&1
 echo ""
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') — nouvelle tentative (utilisateur : $(id -un)) ==="
 
