@@ -130,7 +130,13 @@ site en ligne (`php artisan up`).
 
 En cas d'échec en cours de route, le site **reste volontairement en mode
 maintenance** plutôt que de servir du code à moitié mis à jour. Le journal
-affiché sur la page indique l'étape en cause. Une fois corrigée :
+affiché sur la page indique l'étape en cause — sauf si le processus est
+tué en plein milieu (ex. timeout PHP) avant d'avoir pu renvoyer quoi que
+ce soit à la page : dans ce cas, `storage/logs/deploy-update.log` contient
+la même sortie écrite au fil de l'eau, donc toujours la dernière étape
+atteinte même quand la page elle-même n'affiche rien.
+
+Une fois la cause corrigée :
 
 ```bash
 php artisan up

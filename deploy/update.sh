@@ -18,6 +18,19 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Duplicates all output (this script's own + every command it runs) to a
+# durable log file as it happens, in addition to the normal stdout/stderr
+# that App\Services\SiteUpdater captures and shows on the "Mises à jour"
+# page. The point is diagnosing a run that gets killed mid-way (e.g. by
+# PHP's own max_execution_time) before that page ever gets a response to
+# display: whatever was written before the kill survives here regardless,
+# so `tail storage/logs/deploy-update.log` shows exactly the last step
+# reached even when the admin page shows nothing at all.
+mkdir -p storage/logs
+exec > >(tee -a storage/logs/deploy-update.log) 2>&1
+echo ""
+echo "=== $(date '+%Y-%m-%d %H:%M:%S') — nouvelle tentative (utilisateur : $(id -un)) ==="
+
 # When triggered from the "Mises à jour" admin page, this runs as a
 # PHP-FPM child process — the pool doesn't set env[HOME], so without this,
 # composer/npm (which rely on $HOME to find their cache/config dirs) get a
