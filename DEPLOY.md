@@ -108,12 +108,15 @@ DEPLOY_NPM_BIN=/home/<site-user>/.nvm/versions/node/vXX/bin/npm
 
 Le dépôt étant privé, `git fetch`/`git pull` (déclenchés par le bouton
 « Mettre à jour » comme par `deploy/update.sh` en SSH) ont besoin de la
-clé de déploiement configurée à l'étape 2. Le processus PHP-FPM qui exécute
-la page admin doit voir le même `$HOME` (et donc le même `~/.ssh/config`)
-que l'utilisateur SSH du site — c'est le cas par défaut sous CloudPanel
-(le pool PHP-FPM tourne sous cet utilisateur), mais si le bouton échoue
-avec une erreur d'authentification Git alors que `deploy/update.sh` marche
-en SSH, vérifiez `env[HOME]` dans le pool PHP-FPM du site.
+clé de déploiement configurée à l'étape 2, elle-même dans `~/.ssh/config`
+du `$HOME` de l'utilisateur qui lance le script. Le pool PHP-FPM ne
+définissant généralement pas `env[HOME]`, `deploy/update.sh` le recalcule
+lui-même en tout début de script à partir de l'utilisateur système réel
+(`getent passwd`) — sans ça, composer/npm (qui s'appuient sur `$HOME` pour
+leur cache) peuvent se bloquer indéfiniment sans jamais rien logger quand
+le script est déclenché depuis la page web, alors qu'il tourne normalement
+en SSH où `$HOME` est déjà correct. Le journal affiché sur la page « Mises
+à jour » indique la ligne `HOME=...` utilisée, utile en cas de souci.
 
 ## 6. Mises à jour ultérieures
 

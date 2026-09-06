@@ -12,15 +12,21 @@
 # The GitHub repo is private, so `git pull` here relies on the "origin"
 # remote already being an SSH URL with a passphrase-less deploy key
 # configured for this system user (set up once by deploy/install.sh — see
-# DEPLOY.md). When triggered from the "Mises à jour" admin page, this runs
-# as a PHP-FPM child process: it inherits that user's $HOME (and therefore
-# ~/.ssh/config) only if the PHP-FPM pool's env[HOME] matches — worth
-# checking first if the button fails with a git/SSH error that the
-# SSH-invoked script doesn't reproduce.
+# DEPLOY.md).
 
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+
+# When triggered from the "Mises à jour" admin page, this runs as a
+# PHP-FPM child process — the pool doesn't set env[HOME], so without this,
+# composer/npm (which rely on $HOME to find their cache/config dirs) get a
+# missing or wrong one and can hang or silently redo work an interactive
+# SSH shell never has to, since $HOME is already correct there. Recomputed
+# from the actual running user's own passwd entry, so this is a no-op
+# (and harmless) when $HOME was already right.
+export HOME="$(getent passwd "$(id -un)" | cut -d: -f6)"
+echo "==> HOME=${HOME} (utilisateur : $(id -un))"
 
 PHP_BIN="${DEPLOY_PHP_BIN:-php}"
 COMPOSER_BIN="${DEPLOY_COMPOSER_BIN:-composer}"
