@@ -90,13 +90,13 @@
             font-size: 14px;
             font-weight: bold;
             color: #111827;
-            line-height: 1.1;
+            line-height: 1.4;
         }
 
         .last-name {
             display: block;
             width: 100%;
-            margin-top: 0.5mm;
+            margin-top: 1.5mm;
             font-size: 8px;
             font-weight: normal;
             color: #9ca3af;
@@ -104,7 +104,7 @@
 
         .seat-notes {
             display: block;
-            margin-top: 0.5mm;
+            margin-top: 1mm;
             font-size: 6px;
             font-weight: normal;
             color: #6b7280;
