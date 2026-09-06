@@ -83,24 +83,18 @@ if [ -d node_modules ] && [ "$(stat -c '%U' node_modules)" != "$(id -un)" ]; the
     rm -rf node_modules
 fi
 
-# Temporaire : le web échoue systématiquement au même endroit alors que le
-# SSH réussit systématiquement, propriétaire de node_modules pourtant
-# identique dans les deux cas — il doit y avoir une différence dans
-# l'environnement du processus lui-même. Ces lignes permettent de la voir
-# directement depuis une tentative web plutôt que de continuer à deviner
-# depuis des reproductions SSH qui ne reproduisent jamais le problème.
-echo "==> DEBUG id=$(id) whoami=$(whoami)"
-echo "==> DEBUG HOME=$HOME PATH=$PATH"
-echo "==> DEBUG umask=$(umask)"
-echo "==> DEBUG ulimit -a:"
-ulimit -a 2>&1
-echo "==> DEBUG node_modules: $(stat -c '%U:%G %a' node_modules 2>&1)"
-
 "$NPM_BIN" ci
 
-echo "==> DEBUG après npm ci — node_modules/.bin/vite: $(stat -c '%U:%G %a %N' node_modules/.bin/vite 2>&1)"
-
-"$NPM_BIN" run build
+# Not `npm run build`: confirmed (id, $HOME, $PATH, umask, node_modules'
+# owner, the built symlink itself — all identical) that this exact script
+# builds fine over SSH but fails with "vite: not found" every time when
+# triggered from the web "Mises à jour" button, even though node_modules/
+# .bin/vite demonstrably exists at that point either way. The remaining
+# difference is internal to npm's own PATH-prepending for the sub-shell it
+# spawns to run a package.json script, which apparently isn't reliable
+# across every parent-process context. Invoking the local binary directly
+# sidesteps that logic entirely instead of depending on it.
+node_modules/.bin/vite build
 
 echo "==> Migrations de base de données"
 "$PHP_BIN" artisan migrate --force
