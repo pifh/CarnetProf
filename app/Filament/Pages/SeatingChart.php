@@ -10,6 +10,7 @@ use App\Models\SeatingPlanSeat;
 use App\Models\Student;
 use App\Services\SeatingAssigner;
 use BackedEnum;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -893,6 +894,32 @@ class SeatingChart extends Page
         });
 
         return $lines->implode(' ');
+    }
+
+    public function downloadPdf()
+    {
+        $schoolClass = $this->getSchoolClassesProperty()->firstWhere('id', $this->schoolClassId);
+        $application = $this->resolveApplication();
+
+        if (! $schoolClass || ! $application) {
+            return null;
+        }
+
+        $gridSize = $this->getGridSizeProperty();
+        $orientation = $gridSize['cols'] > $gridSize['rows'] ? 'landscape' : 'portrait';
+
+        $filename = 'plan-de-classe-'.str($schoolClass->name)->slug().'-'.($application->effective_date?->format('Y-m-d') ?? 'sans-date').'.pdf';
+
+        $pdf = Pdf::loadView('pdf.seating-chart', [
+            'schoolClass' => $schoolClass,
+            'application' => $application,
+            'teacherDeskPosition' => $this->teacherDeskPosition,
+            'gridSize' => $gridSize,
+            'deskMap' => $this->getDeskMapProperty(),
+            'orientation' => $orientation,
+        ])->setPaper('a4', $orientation);
+
+        return response()->streamDownload(fn () => print ($pdf->output()), $filename, ['Content-Type' => 'application/pdf']);
     }
 
     public function clearSeats(): void

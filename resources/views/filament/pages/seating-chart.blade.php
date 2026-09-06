@@ -26,6 +26,12 @@
             <a href="{{ \App\Filament\Pages\SeatingRoomLayouts::getUrl() }}" class="pb-2 text-sm text-primary-600 hover:underline dark:text-primary-400">
                 Modifier cette disposition →
             </a>
+
+            @if ($this->currentApplication)
+                <x-filament::button color="gray" wire:click="downloadPdf" class="ml-auto">
+                    Télécharger en PDF (A4)
+                </x-filament::button>
+            @endif
         </div>
 
         <div class="mt-4 border-t border-gray-100 pt-4 dark:border-white/5">

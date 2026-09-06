@@ -834,3 +834,38 @@ it('does not let a different plan\'s seating history influence "avoid repeat sea
     // history from an unrelated plan must never veto it.
     expect($seat->seating_plan_desk_id)->toBe($sameCoordDesk->id);
 });
+
+it('downloads an A4 PDF of the current seating plan', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create(['teacher_desk_position' => 'left']);
+    $desk = seatingDesk($plan);
+
+    $this->actingAs($teacher);
+
+    Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id)
+        ->call('selectStudent', $student->id)
+        ->call('seatClicked', $desk->id, 0)
+        ->call('downloadPdf')
+        ->assertFileDownloaded(contentType: 'application/pdf');
+});
+
+it('picks a landscape A4 page for a room wider than it is tall', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->hasAttached(Subject::factory()->for($teacher))->create();
+    $plan = SeatingPlan::factory()->for($teacher)->create();
+    seatingDesk($plan, 0, 0);
+    seatingDesk($plan, 0, 1);
+    seatingDesk($plan, 0, 2);
+
+    $this->actingAs($teacher);
+
+    Livewire::test(SeatingChart::class)
+        ->set('planId', $plan->id)
+        ->set('schoolClassId', $class->id)
+        ->call('downloadPdf')
+        ->assertFileDownloaded(contentType: 'application/pdf');
+});
