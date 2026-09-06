@@ -68,6 +68,21 @@ echo "==> Installation des dépendances PHP"
 "$COMPOSER_BIN" install --no-dev --optimize-autoloader --no-interaction
 
 echo "==> Installation des dépendances front-end et build"
+
+# node_modules can be left owned by a different system user than the one
+# running this script (e.g. a previous attempt via a different path — the
+# web "Mises à jour" button vs SSH — created it under a different user).
+# `npm ci` happily recreates its contents either way, but npm silently
+# refuses to prepend node_modules/.bin to PATH for scripts it runs when
+# the directory's owner doesn't match the current user (a security check
+# against untrusted-owner directories) — indistinguishable from "vite not
+# installed" until you check `stat`. Wipe and let npm ci recreate it
+# cleanly under the current user rather than hit that every time.
+if [ -d node_modules ] && [ "$(stat -c '%U' node_modules)" != "$(id -un)" ]; then
+    echo "==> node_modules appartient à un autre utilisateur, suppression avant réinstallation"
+    rm -rf node_modules
+fi
+
 "$NPM_BIN" ci
 "$NPM_BIN" run build
 
