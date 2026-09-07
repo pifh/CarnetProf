@@ -46,6 +46,20 @@ it('imports Ecole-Directe occurrences from the configured ICS URL', function () 
     expect($teacher->ecole_directe_synced_at)->not->toBeNull();
 });
 
+it('converts UTC feed times to Europe/Paris local time before saving', function () {
+    $teacher = User::factory()->create(['ecole_directe_ics_url' => 'https://ecole-directe.test/calendar.ics']);
+
+    Http::fake(['ecole-directe.test/*' => Http::response(fakeIcsFixture())]);
+
+    app(EcoleDirecteIcsImporter::class)->importForUser($teacher);
+
+    // 2026-09-10 is inside French summer time (CEST, UTC+2), so a
+    // "08:00:00Z" DTSTART is 10:00 local — not the raw 08:00 UTC digits.
+    $event = EcoleDirecteEvent::withoutGlobalScopes()->where('uid', 'ed-event-1@ecole-directe')->first();
+    expect($event->starts_at->format('H:i'))->toBe('10:00')
+        ->and($event->ends_at->format('H:i'))->toBe('10:55');
+});
+
 it('updates existing occurrences by uid instead of duplicating them', function () {
     $teacher = User::factory()->create(['ecole_directe_ics_url' => 'https://ecole-directe.test/calendar.ics']);
     $updatedFixture = str_replace('Mathématiques 6e A', 'Mathématiques 6e A (salle 12)', fakeIcsFixture());
