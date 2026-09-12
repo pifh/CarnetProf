@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SchoolClasses\RelationManagers;
 
+use App\Models\Student;
 use Filament\Actions\AttachAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DetachAction;
@@ -39,6 +40,8 @@ class GroupClassMembersRelationManager extends RelationManager
             ->headerActions([
                 AttachAction::make()
                     ->label('Ajouter un élève')
+                    ->recordTitle(fn (Student $student) => $student->full_name.($student->schoolClass ? ' — '.$student->schoolClass->name : ''))
+                    ->recordSelectSearchColumns(['first_name', 'last_name'])
                     ->recordSelectOptionsQuery(fn ($query) => $query
                         ->where('students.user_id', Auth::id())
                         ->where('students.is_archived', false)
