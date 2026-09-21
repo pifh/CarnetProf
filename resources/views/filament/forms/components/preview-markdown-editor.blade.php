@@ -73,6 +73,27 @@
                             preview.style.backgroundColor = document.documentElement.classList.contains('dark')
                                 ? 'rgb(24 24 27)'
                                 : 'rgb(255 255 255)'
+
+                            const renderPreview = () => {
+                                const rendered = component.editor.options.previewRender(
+                                    component.editor.value(),
+                                    preview,
+                                )
+
+                                if (rendered !== null && rendered !== undefined) {
+                                    preview.innerHTML = rendered
+                                }
+                            }
+
+                            // Livewire can hydrate the entangled value during the
+                            // preview opening transition. Render once the preview
+                            // is active, then keep it synchronized with the state.
+                            requestAnimationFrame(() => {
+                                component.editor.value(component.state ?? '')
+                                renderPreview()
+                            })
+
+                            component.$watch('state', () => requestAnimationFrame(renderPreview))
                         }
                     },
                     uploadFileAttachmentUsing: async (file, onSuccess, onError) => {
