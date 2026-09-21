@@ -45,8 +45,7 @@
                         const toggle = document.createElement('button')
 
                         toggle.type = 'button'
-                        toggle.className = 'fi-markdown-source-toggle'
-                        toggle.textContent = 'Code'
+                        toggle.className = 'code'
                         toggle.title = 'Afficher le code Markdown'
                         toggle.setAttribute('aria-label', 'Afficher le code Markdown')
                         toggle.setAttribute('aria-pressed', 'false')
@@ -56,13 +55,25 @@
 
                             component.editor.togglePreview()
                             toggle.setAttribute('aria-pressed', sourceIsVisible ? 'false' : 'true')
-                            toggle.textContent = sourceIsVisible ? 'Code' : 'Aperçu'
                             toggle.title = sourceIsVisible ? 'Afficher le code Markdown' : 'Afficher le compte rendu mis en forme'
                             toggle.setAttribute('aria-label', toggle.title)
+                            toggle.classList.toggle('active', ! sourceIsVisible)
                         })
 
                         toolbar.prepend(toggle)
                         component.editor.togglePreview()
+
+                        const preview = component.editor.codemirror
+                            .getWrapperElement()
+                            .querySelector('.editor-preview-full')
+
+                        preview?.classList.add('fi-prose')
+
+                        if (preview) {
+                            preview.style.backgroundColor = document.documentElement.classList.contains('dark')
+                                ? 'rgb(24 24 27)'
+                                : 'rgb(255 255 255)'
+                        }
                     },
                     uploadFileAttachmentUsing: async (file, onSuccess, onError) => {
                         const acceptedTypes = @js($fileAttachmentsAcceptedFileTypes)
