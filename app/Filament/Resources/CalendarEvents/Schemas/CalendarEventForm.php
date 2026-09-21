@@ -2,11 +2,11 @@
 
 namespace App\Filament\Resources\CalendarEvents\Schemas;
 
+use App\Filament\Forms\Components\PreviewMarkdownEditor;
 use App\Models\CalendarEvent;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -70,7 +70,7 @@ class CalendarEventForm
                     ->visible(fn (Get $get) => ! $get('all_day'))
                     ->dehydrated(fn (Get $get) => ! $get('all_day')),
 
-                MarkdownEditor::make('notes')
+                PreviewMarkdownEditor::make('notes')
                     ->label('Compte rendu')
                     ->columnSpanFull(),
 

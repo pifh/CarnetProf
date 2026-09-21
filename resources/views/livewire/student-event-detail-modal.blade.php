@@ -32,7 +32,7 @@
 
                 @if ($this->event->notes)
                     <div class="prose prose-sm mt-4 max-w-none dark:prose-invert">
-                        {!! str($this->event->notes)->markdown() !!}
+                        {!! str($this->event->notes)->markdown()->sanitizeHtml() !!}
                     </div>
                 @endif
 

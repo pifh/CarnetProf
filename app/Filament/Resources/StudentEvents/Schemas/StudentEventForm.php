@@ -2,12 +2,12 @@
 
 namespace App\Filament\Resources\StudentEvents\Schemas;
 
+use App\Filament\Forms\Components\PreviewMarkdownEditor;
 use App\Models\Student;
 use App\Models\StudentEvent;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -83,7 +83,7 @@ class StudentEventForm
                     ->dehydrated(false)
                     ->columnSpanFull(),
 
-                MarkdownEditor::make('notes')
+                PreviewMarkdownEditor::make('notes')
                     ->label('Compte rendu')
                     ->columnSpanFull(),
 
