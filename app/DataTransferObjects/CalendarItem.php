@@ -23,6 +23,10 @@ final readonly class CalendarItem
         public ?Carbon $endsAt,
         public bool $allDay,
         public ?int $studentId = null,
+        public ?string $studentName = null,
+        public ?string $room = null,
+        public ?string $group = null,
+        public ?string $eventTitle = null,
     ) {}
 
     /**

@@ -24,6 +24,8 @@ class EcoleDirecteEventFactory extends Factory
             'user_id' => User::factory(),
             'uid' => fake()->uuid(),
             'title' => fake()->randomElement(['Mathématiques 6e A', 'Français 5e B', 'Histoire-Géo 4e C']),
+            'room' => fake()->optional()->numerify('Salle ##'),
+            'group_name' => fake()->optional()->randomElement(['6e A', '5e B - Groupe 1', '4e C']),
             'starts_at' => $start,
             'ends_at' => (clone $start)->modify('+55 minutes'),
         ];

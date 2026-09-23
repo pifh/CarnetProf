@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DataTransferObjects\CalendarItem;
 use App\Http\Controllers\Controller;
 use App\Models\LogbookEntry;
 use App\Models\PersonalBirthday;
@@ -81,15 +82,7 @@ class NasFeedController extends Controller
             ->filter(fn ($item) => in_array($today, $item->datesOccupied(), true))
             ->sortBy(fn ($item) => $item->startsAt->timestamp) // all-day items start at midnight, so they naturally sort first
             ->values()
-            ->map(fn ($item) => [
-                'type' => $item->type,
-                'type_label' => CalendarCategories::label($item->type),
-                'title' => $item->title,
-                'description' => $item->description,
-                'starts_at' => $item->allDay ? null : $item->startsAt->toIso8601String(),
-                'ends_at' => $item->allDay || ! $item->endsAt ? null : $item->endsAt->toIso8601String(),
-                'all_day' => $item->allDay,
-            ]);
+            ->map(fn (CalendarItem $item) => $this->scheduleItem($item));
 
         return response()->json([
             'date' => $today,
@@ -151,5 +144,44 @@ class NasFeedController extends Controller
         abort_if(blank($token), 401, 'Jeton manquant : passez-le dans l\'URL ou via Authorization: Bearer.');
 
         return User::withoutGlobalScopes()->where('api_token', $token)->firstOrFail();
+    }
+
+    /**
+     * The NAS feed deliberately exposes only operational planning data.
+     * Private notes and event reports never belong in this response.
+     *
+     * @return array<string, mixed>
+     */
+    private function scheduleItem(CalendarItem $item): array
+    {
+        $data = [
+            'type' => $item->type,
+            'title' => $item->title,
+            'starts_at' => $item->allDay ? null : $item->startsAt->toIso8601String(),
+            'ends_at' => $item->allDay || ! $item->endsAt ? null : $item->endsAt->toIso8601String(),
+            'all_day' => $item->allDay,
+        ];
+
+        if (in_array($item->type, ['cours', 'ecole_directe'], true)) {
+            return [
+                ...$data,
+                'type_label' => 'Cours',
+                'room' => $item->room,
+                'group' => $item->group,
+            ];
+        }
+
+        if ($item->type === 'reunions_eleves') {
+            return [
+                ...$data,
+                'title' => $item->eventTitle ?? $item->title,
+                'student' => $item->studentName,
+            ];
+        }
+
+        return [
+            ...$data,
+            'type_label' => CalendarCategories::label($item->type),
+        ];
     }
 }

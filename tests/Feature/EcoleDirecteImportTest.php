@@ -16,6 +16,8 @@ function fakeIcsFixture(): string
     BEGIN:VEVENT
     UID:ed-event-1@ecole-directe
     SUMMARY:Mathématiques 6e A
+    LOCATION:Salle 204
+    DESCRIPTION:Groupe : 6e A - Groupe 2
     DTSTART:20260910T080000Z
     DTEND:20260910T085500Z
     END:VEVENT
@@ -41,6 +43,8 @@ it('imports Ecole-Directe occurrences from the configured ICS URL', function () 
 
     $event = EcoleDirecteEvent::withoutGlobalScopes()->where('uid', 'ed-event-1@ecole-directe')->first();
     expect($event->title)->toBe('Mathématiques 6e A');
+    expect($event->room)->toBe('Salle 204')
+        ->and($event->group_name)->toBe('6e A - Groupe 2');
 
     $teacher->refresh();
     expect($teacher->ecole_directe_synced_at)->not->toBeNull();

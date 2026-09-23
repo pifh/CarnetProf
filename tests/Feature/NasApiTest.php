@@ -2,11 +2,13 @@
 
 use App\Filament\Pages\ApiIntegration;
 use App\Models\CalendarEvent;
+use App\Models\EcoleDirecteEvent;
 use App\Models\LogbookEntry;
 use App\Models\PersonalBirthday;
 use App\Models\Reminder;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Models\StudentEvent;
 use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -92,6 +94,54 @@ it("returns today's schedule, excluding birthdays", function () {
     $types = collect($response->json('schedule'))->pluck('type');
     expect($types)->not->toContain('anniversaires_eleves')
         ->and($types)->toContain('reunions_rdv', 'cours');
+});
+
+it('returns concise courses and student events without private reports', function () {
+    $teacher = User::factory()->create();
+    $class = SchoolClass::factory()->for($teacher)->create();
+    $student = Student::factory()->for($teacher)->for($class, 'schoolClass')->create([
+        'first_name' => 'Camille',
+        'last_name' => 'Dupont',
+    ]);
+
+    EcoleDirecteEvent::factory()->for($teacher)->create([
+        'title' => 'Mathématiques',
+        'room' => 'Salle 204',
+        'group_name' => '6e A - Groupe 2',
+        'starts_at' => Carbon::today()->setTime(8, 0),
+        'ends_at' => Carbon::today()->setTime(8, 55),
+    ]);
+
+    StudentEvent::factory()->for($teacher)->for($student)->create([
+        'type' => 'Entretien',
+        'notes' => 'Compte rendu strictement privé',
+        'starts_at' => Carbon::today()->setTime(10, 30),
+        'ends_at' => Carbon::today()->setTime(11, 0),
+        'all_day' => false,
+    ]);
+
+    $response = $this->getJson('/api/nas/'.$teacher->ensureApiToken().'/schedule');
+
+    $response->assertOk()->assertJsonCount(2, 'schedule');
+
+    $course = collect($response->json('schedule'))->firstWhere('type', 'ecole_directe');
+    expect($course)
+        ->toMatchArray([
+            'type_label' => 'Cours',
+            'title' => 'Mathématiques',
+            'room' => 'Salle 204',
+            'group' => '6e A - Groupe 2',
+        ])
+        ->not->toHaveKey('description');
+
+    $event = collect($response->json('schedule'))->firstWhere('type', 'reunions_eleves');
+    expect($event)
+        ->toMatchArray([
+            'title' => 'Entretien',
+            'student' => 'Camille Dupont',
+        ])
+        ->not->toHaveKey('description')
+        ->and(json_encode($response->json(), JSON_THROW_ON_ERROR))->not->toContain('Compte rendu strictement privé');
 });
 
 it('returns pending (not done) reminders ordered by due date, undated last', function () {

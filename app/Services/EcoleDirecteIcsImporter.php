@@ -53,6 +53,8 @@ class EcoleDirecteIcsImporter
                     ['user_id' => $user->id, 'uid' => $uid],
                     [
                         'title' => (string) $vevent->SUMMARY,
+                        'room' => $this->propertyValue($vevent, ['LOCATION']),
+                        'group_name' => $this->extractGroup($vevent),
                         'starts_at' => $starts,
                         'ends_at' => $ends,
                     ]
@@ -78,5 +80,56 @@ class EcoleDirecteIcsImporter
         $user->forceFill(['ecole_directe_synced_at' => now()])->save();
 
         return $count;
+    }
+
+    /**
+     * @param  array<int, string>  $propertyNames
+     */
+    private function propertyValue(object $vevent, array $propertyNames): ?string
+    {
+        foreach ($propertyNames as $propertyName) {
+            if (! isset($vevent->{$propertyName})) {
+                continue;
+            }
+
+            $value = trim((string) $vevent->{$propertyName});
+
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractGroup(object $vevent): ?string
+    {
+        $explicitGroup = $this->propertyValue($vevent, [
+            'X-ECOLEDIRECTE-GROUP',
+            'X-ECOLE-DIRECTE-GROUP',
+            'X-GROUP',
+            'GROUP',
+        ]);
+
+        if ($explicitGroup) {
+            return $explicitGroup;
+        }
+
+        $description = $this->propertyValue($vevent, ['DESCRIPTION']);
+
+        if (! $description) {
+            return $this->propertyValue($vevent, ['CATEGORIES']);
+        }
+
+        if (preg_match('/(?:groupe|classe)\s*:\s*([^\r\n]+)/iu', $description, $matches) === 1) {
+            return trim($matches[1]);
+        }
+
+        // Some Ecole Directe calendars expose only the group name in the
+        // description, without a label. Preserve that concise value, but do
+        // not import a longer free-text description into the planning API.
+        return mb_strlen($description) <= 120 && ! str_contains($description, "\n")
+            ? $description
+            : null;
     }
 }

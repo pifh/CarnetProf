@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['user_id', 'uid', 'title', 'starts_at', 'ends_at'])]
+#[Fillable(['user_id', 'uid', 'title', 'room', 'group_name', 'starts_at', 'ends_at'])]
 class EcoleDirecteEvent extends Model
 {
     use BelongsToTeacher, HasFactory;

@@ -90,6 +90,8 @@ class CalendarItemCollector
                     startsAt: $startsAt,
                     endsAt: $endsAt,
                     allDay: $allDay,
+                    room: $entry->ecoleDirecteEvent?->room,
+                    group: $entry->ecoleDirecteEvent?->group_name,
                 );
             });
     }
@@ -119,6 +121,8 @@ class CalendarItemCollector
                 startsAt: $event->starts_at,
                 endsAt: $event->ends_at,
                 allDay: false,
+                room: $event->room,
+                group: $event->group_name,
             ));
     }
 
@@ -140,6 +144,9 @@ class CalendarItemCollector
                 startsAt: $event->starts_at,
                 endsAt: $event->ends_at,
                 allDay: $event->all_day,
+                studentId: $event->student_id,
+                studentName: $event->student->full_name,
+                eventTitle: $event->type,
             ));
     }
 
